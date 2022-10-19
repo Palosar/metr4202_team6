@@ -142,8 +142,8 @@ class Cube:
         self.last_detected_seq = -1
 
     def update_pos(self, x, y, z):
-        if len(self.history) > 5:
-            self.history.pop(0)
+        if len(self.history) == 5:
+            temp = self.history.pop(0)
 
         self.history.append([x, y, z])
 
@@ -156,7 +156,7 @@ def inverse_kinematics(pose: Pose) -> JointState:
     
     desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
     desired_joint_angles = desired_jstate.position
-
+    print(f"from invk{desired_joint_angles}")
     pub.publish(desired_jstate)
 
 # grippper callback checks if grip value is not outside of limits and sets it
@@ -282,7 +282,7 @@ def init():
     states = {
         "PREDICTION" : 0,
         "HOMESTATE" : 1,
-        "PICKUP_STATE" : 2,
+        "PICKUP" : 2,
         "COLOUR_CHECK" : 3,
         "DROP_OFF" : 4
     }
@@ -296,7 +296,6 @@ def move_to_home():
     msg.position.x = 100
     msg.position.y = 100
     msg.position.z = 100
-
     desired_pose_pub.publish(msg)
     
 def pickup_cube(cube: Cube):
@@ -305,17 +304,21 @@ def pickup_cube(cube: Cube):
     global desired_joint_angles
     global current_joint_angles
 
+    cube_last_pos = cube.history[-1]
+
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube.x
-    msg.position.y = cube.y
-    msg.position.z = cube.z
+    msg.position.x = cube_last_pos[0]
+    msg.position.y = cube_last_pos[1]
+    msg.position.z = cube_last_pos[2]
 
     desired_pose_pub.publish(msg)
 
     arm_in_place = False
 
     while(not arm_in_place):
+        global desired_joint_angles
+        print(f"{desired_joint_angles}")
         diff_j1 = np.abs(desired_joint_angles.position[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles.position[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles.position[2] - current_joint_angles[2])
@@ -333,10 +336,6 @@ def main():
     # initialise nodes and gripper
     init()
 
-    #### STATE MACHINE #####
-    global MOVING_STATE
-    global PREDICTION_STATE
-
     # global variables
     global current_joint_angles     # array of current angles in radians
     global desired_joint_angles     # array of desired angles in radians
@@ -344,40 +343,46 @@ def main():
     global state
     global states
     global time
-
-    rospy.spin()
+    count = 0
     while(True):
-        print(state)
         if state == states.get("PREDICTION"):
+            # rospy.loginfo(count)
             # wait till cubes stop
-            stopped = False
+            stopped = False # FOR TESTING
 
             # check if more than 1 cube exists
             # TODO: check rotation and if you need to detect time
+            print("test1")
+            print(f"number of cubes: {len(cubes)}")
             if len(cubes) > 0:
                 id, cube = list(cubes.items())[0]
+                print(f"number of hustory: {len(cube.history)}")
                 if len(cube.history) == 5:
+                    print("test")
                     current = cube.history[0]
                     oldest = cube.history[4]
 
-                    dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]+oldest[2])**2)
-                    # print(f"distance {dist}")
+                    dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
+                    print(f"distance {dist}")
                     if dist < 5:
                         stopped = True
 
-
+            print("test2")
             if stopped:
                 # change to PICKUP state
                 state = states["PICKUP"]
 
-        elif states.get("HOMESTATE"):
+        elif state == states.get("HOMESTATE"):
             move_to_home()
-            state = states["PREDICTION"]
+            # rospy.sleep(2)
+            # count += 1
+            # state = states["PREDICTION"]
 
         elif state == states.get("PICKUP"):
             # find closest box
             # pickup the first box
-            pickup_cube(cubes.items()[0])
+            id, cube = list(cubes.items())[0]
+            pickup_cube(cube)
             state = states["COLOUR_CHECK"]
 
         elif state == states.get("COLOUR_CHECK"):
@@ -391,9 +396,10 @@ def main():
             state = states["HOMESTATE"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
-        testSpeed = rospy.rate(10)
-        testSpeed.sleep(0.1)
+        testSpeed = rospy.Rate(5)
+        testSpeed.sleep()
 
+    rospy.spin()
 
 
 
