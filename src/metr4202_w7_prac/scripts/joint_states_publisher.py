@@ -168,8 +168,6 @@ def gripper_cb(gripValue: Float32):
         rpi.set_servo_pulsewidth(18,gripValue.data) 
         rospy.loginfo("Gripper state value changed to: " + gripValue.data)
 
-
-
 def acuro_cb(data: FiducialTransformArray):
     global cubes
     # NOTE: must add ignorance to arm tag
@@ -274,9 +272,9 @@ def init():
         joint_state_cb
     )
 
-    global cubes                    # dictionary of cubes detected in the system
-    global states
-    global state
+    global cubes        # dictionary of cubes detected in the system
+    global states       # dictionary of states
+    global state        # current state of arm
     cubes = {}
 
     states = {
@@ -287,6 +285,7 @@ def init():
         "DROP_OFF" : 4
     }
 
+    # begin project in homestate
     state = states["HOMESTATE"]
 
 def move_to_home():
@@ -329,8 +328,6 @@ def pickup_cube(cube: Cube):
 
     # grab box (1500 value)
     gripper_pub.pub(Float32(1500))
-
-
 
 def main():
     # initialise nodes and gripper
@@ -400,8 +397,6 @@ def main():
         testSpeed.sleep()
 
     rospy.spin()
-
-
 
 if __name__ == '__main__':
     main()
