@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/ximea_ros/share/ximea_ros/cmake/ximea_rosConfig.cmake

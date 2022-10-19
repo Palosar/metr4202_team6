@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/dynamixel_interface/share/common-lisp/ros/dynamixel_interface/msg/ServoDiag.lisp

@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/ximea_color/lib/pkgconfig/ximea_color.pc

@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/install
+
+Name: ximea_color
+Description: Description of ximea_color
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lximea_cv
+Requires: roscpp rospy std_msgs message_runtime message_runtime ximea_ros

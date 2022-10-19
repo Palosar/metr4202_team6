@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/devel/.private/metr4202_w8_prac
+
+Name: metr4202_w8_prac
+Description: Description of metr4202_w8_prac
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

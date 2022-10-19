@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/devel/.private/ximea_ros_cam
+
+Name: ximea_ros_cam
+Description: Description of ximea_ros_cam
+Version: 1.0.0
+Cflags: -I/home/team6/catkin_ws/devel/.private/ximea_ros_cam/include -I/home/team6/catkin_ws/src/ximea_ros_cam/include -I/usr/include
+Libs: -L${prefix}/lib -lximea_ros_cam
+Requires: roscpp roslib nodelet sensor_msgs image_transport camera_info_manager std_msgs message_generation diagnostic_updater

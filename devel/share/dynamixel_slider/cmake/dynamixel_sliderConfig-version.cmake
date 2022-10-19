@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/dynamixel_slider/share/dynamixel_slider/cmake/dynamixel_sliderConfig-version.cmake

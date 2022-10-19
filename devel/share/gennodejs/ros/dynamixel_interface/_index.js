@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/dynamixel_interface/share/gennodejs/ros/dynamixel_interface/_index.js

@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/install
+
+Name: metr4202_w7_prac
+Description: Description of metr4202_w7_prac
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

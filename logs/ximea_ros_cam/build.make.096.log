@@ -1,0 +1,14 @@
+[  0%] Built target std_msgs_generate_messages_lisp
+[  0%] Built target std_msgs_generate_messages_py
+[  0%] Built target std_msgs_generate_messages_cpp
+[  0%] Built target std_msgs_generate_messages_eus
+[  0%] Built target std_msgs_generate_messages_nodejs
+[  0%] Built target _ximea_ros_cam_generate_messages_check_deps_XiImageInfo
+[  9%] Built target ximea_ros_cam_generate_messages_lisp
+[ 18%] Built target ximea_ros_cam_generate_messages_cpp
+[ 36%] Built target ximea_ros_cam_generate_messages_py
+[ 45%] Built target ximea_ros_cam_generate_messages_nodejs
+[ 63%] Built target ximea_ros_cam_generate_messages_eus
+[ 63%] Built target ximea_ros_cam_generate_messages
+[ 81%] Built target ximea_ros_cam
+[100%] Built target ximea_ros_cam_node

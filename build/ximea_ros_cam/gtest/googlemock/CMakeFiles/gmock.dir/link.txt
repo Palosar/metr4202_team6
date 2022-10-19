@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -std=gnu++11 -Wall -Wextra   -shared -Wl,-soname,libgmock.so -o ../lib/libgmock.so CMakeFiles/gmock.dir/src/gmock-all.cc.o  -Wl,-rpath,/home/team6/catkin_ws/build/ximea_ros_cam/gtest/lib ../lib/libgtest.so -lpthread 

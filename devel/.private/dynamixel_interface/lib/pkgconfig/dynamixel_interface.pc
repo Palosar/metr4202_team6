@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/devel/.private/dynamixel_interface
+
+Name: dynamixel_interface
+Description: Description of dynamixel_interface
+Version: 0.1.0
+Cflags: -I/home/team6/catkin_ws/devel/.private/dynamixel_interface/include -I/home/team6/catkin_ws/src/dynamixel_interface/include
+Libs: -L${prefix}/lib 
+Requires: roscpp roslib xmlrpcpp sensor_msgs std_msgs dynamixel_sdk message_runtime

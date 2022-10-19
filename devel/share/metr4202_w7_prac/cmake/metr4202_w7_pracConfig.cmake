@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/metr4202_w7_prac/share/metr4202_w7_prac/cmake/metr4202_w7_pracConfig.cmake

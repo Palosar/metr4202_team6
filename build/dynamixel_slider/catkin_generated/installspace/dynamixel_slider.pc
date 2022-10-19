@@ -1,0 +1,8 @@
+prefix=/home/team6/catkin_ws/install
+
+Name: dynamixel_slider
+Description: Description of dynamixel_slider
+Version: 1.1.1
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

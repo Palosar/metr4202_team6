@@ -1,0 +1,22 @@
+[  0%] Built target std_msgs_generate_messages_nodejs
+[  0%] Built target sensor_msgs_generate_messages_nodejs
+[  0%] Built target _dynamixel_interface_generate_messages_check_deps_ServoDiags
+[  0%] Built target _dynamixel_interface_generate_messages_check_deps_DataPorts
+[  0%] Built target std_msgs_generate_messages_eus
+[  0%] Built target sensor_msgs_generate_messages_eus
+[  0%] Built target _dynamixel_interface_generate_messages_check_deps_ServoDiag
+[  0%] Built target _dynamixel_interface_generate_messages_check_deps_DataPort
+[  0%] Built target sensor_msgs_generate_messages_cpp
+[  0%] Built target std_msgs_generate_messages_cpp
+[  0%] Built target sensor_msgs_generate_messages_lisp
+[  0%] Built target sensor_msgs_generate_messages_py
+[  0%] Built target std_msgs_generate_messages_lisp
+[  0%] Built target std_msgs_generate_messages_py
+[ 18%] Built target dynamixel_interface_generate_messages_eus
+[ 33%] Built target dynamixel_interface_generate_messages_nodejs
+[ 48%] Built target dynamixel_interface_generate_messages_cpp
+[ 62%] Built target dynamixel_interface_generate_messages_lisp
+[ 81%] Built target dynamixel_interface_generate_messages_py
+[ 92%] Built target dynamixel_interface
+[ 92%] Built target dynamixel_interface_generate_messages
+[100%] Built target dynamixel_interface_controller_node

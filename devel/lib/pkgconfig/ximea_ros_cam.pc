@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/ximea_ros_cam/lib/pkgconfig/ximea_ros_cam.pc

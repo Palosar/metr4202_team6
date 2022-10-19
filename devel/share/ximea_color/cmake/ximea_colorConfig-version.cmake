@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/ximea_color/share/ximea_color/cmake/ximea_colorConfig-version.cmake
