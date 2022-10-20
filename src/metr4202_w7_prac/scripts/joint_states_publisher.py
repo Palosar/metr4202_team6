@@ -28,7 +28,38 @@ import pigpio
 
 
 import math
- 
+
+
+"""
+
+def zRotMatrix(theta):
+    R = np.array([[np.cos(theta), -np.sin(theta), 0],
+                  [np.sin(theta), np.cos(theta), 0],
+                  [0,0,1]])
+    return
+
+#makes a transformation matrix
+def RpToTrans(R, p):
+    return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
+
+# makes a transformation from the camera to the centre of the cube    
+def transCamCen(theta, p):
+    I = np.eye(3)
+
+    # Tag side length
+    L = 28 #mm
+    pcor_cen = np.array([L/2, L/2, 0])
+    # transformation from corner of tag to centre
+    Tcor_cen = RpToTrans(I, pcor_cen)
+
+    R_cam_cor = zRotMatrix(theta)
+    Tcam_cor = RpToTrans(R_cam_cor, p)
+    # Transformation from camera to corner of arucotag
+    Tcam_cen = np.dot(Tcam_cor, Tcor_cen)
+    return Tcam_cen
+   
+   
+"""    
 def euler_from_quaternion(x, y, z, w):
         """
         Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -203,6 +234,19 @@ def acuro_cb(data: FiducialTransformArray):
         # get main cube information
         tagId = data.transforms[0].fiducial_id
         tagPos = data.transforms[0].transform.translation
+        tagOrient = data.transforms[0].transform.rotation
+        
+        x, y, z = euler_from_quaternion(tagOrient.x, tagOrient.y, tagOrient.z, tagOrient.w)
+        print(f"EULER x:{x}, y:{y}, z:{z}")
+        print(f"Data{data.transforms[0]}")
+        
+        """
+        p = np.array([tagPos.x, tagPos.y, tagPos.z])
+        print(f"this is p: {p}")
+        #transformation from camera to centre of cube
+        Tcam_cen = transCamCen(z, p)
+        print(f"Transformation from cam to centre T{Tcam_cen}")
+        """
         
         if tagId != ARM_ID:
 
@@ -370,7 +414,7 @@ def main():
 
     # add initial delay so dynamixel can load
     rospy.sleep(3)
-
+    """
     testSpeed = rospy.Rate(10)
 
     while(True):
@@ -434,7 +478,7 @@ def main():
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-
+    """
     rospy.spin()
 
 if __name__ == '__main__':
