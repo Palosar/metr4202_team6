@@ -178,17 +178,6 @@ def invk2(x,y,z):
         #effort=[20, 20, 20, 20]
     )
     
-    print(best_solution)
-    
-    # put joint messages into msg
-    """
-    msg.position = [
-        best_solution[0],
-        best_solution[1],
-        best_solution[2],
-        best_solution[3]
-    ]"""
-     
     return(msg)
 
 class Cube:
@@ -204,15 +193,15 @@ class Cube:
         self.history.append([x, y, z])
 
 # This one doesn't actually do it though...
-def inverse_kinematics(pose: Pose) -> JointState:
+def invk_cb(pose: Pose):
     global pub
     global desired_joint_angles
-    # TODO: Have fun :)
     #rospy.loginfo(f'Got desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
     
     desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
     desired_joint_angles = desired_jstate.position
-    # print(f"from invk{desired_joint_angles}")
+    
+    print(f"from invk{desired_joint_angles}")
     pub.publish(desired_jstate)
 
 # grippper callback checks if grip value is not outside of limits and sets it
@@ -315,9 +304,9 @@ def init():
 
     # subscriber for desired pose
     sub = rospy.Subscriber(
-        'desired_pose',         # Topic name
-        Pose,                   # Message type
-        inverse_kinematics      # Callback function (required)
+        'desired_pose',     # Topic name
+        Pose,               # Message type
+        invk_cb             # Callback function (required)
     )
 
     # subscriber for gripper
@@ -373,9 +362,9 @@ def move_to_home():
     msg.position.z = 100
     desired_pose_pub.publish(msg)
     arm_in_place = False
+    
     while(not arm_in_place):
-        global desired_joint_angles
-        print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
         diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
