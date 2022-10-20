@@ -174,8 +174,8 @@ def invk2(x,y,z):
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
         position=[best_solution[0], best_solution[1], best_solution[2], best_solution[3]],
-        velocity=[0.1, 0.1, 0.1, 0.1],
-        effort=[20, 20, 20, 20]
+        #velocity=[0.4, 0.4, 0.4, 0.4],
+        #effort=[20, 20, 20, 20]
     )
     
     print(best_solution)
@@ -217,12 +217,13 @@ def inverse_kinematics(pose: Pose) -> JointState:
 
 # grippper callback checks if grip value is not outside of limits and sets it
 def gripper_cb(gripValue: Float32):
+    global rpi
     # check limits so servo doesnt break
     if (gripValue.data < 1000 or gripValue.data > 2000):
-        rospy.loginfo("Gripper value (" + gripValue.data + ") is invalid. Limits are 1000-2000.")
+        print(f"Gripper value ({gripValue.data}) is invalid. Limits are 1000-2000.")
     else:
         rpi.set_servo_pulsewidth(18,gripValue.data) 
-        rospy.loginfo("Gripper state value changed to: " + gripValue.data)
+        print(f"Gripper state value changed to: + {gripValue.data}")
 
 def acuro_cb(data: FiducialTransformArray):
     global cubes
@@ -237,8 +238,8 @@ def acuro_cb(data: FiducialTransformArray):
         tagOrient = data.transforms[0].transform.rotation
         
         x, y, z = euler_from_quaternion(tagOrient.x, tagOrient.y, tagOrient.z, tagOrient.w)
-        print(f"EULER x:{x}, y:{y}, z:{z}")
-        print(f"Data{data.transforms[0]}")
+        #print(f"EULER x:{x}, y:{y}, z:{z}")
+        #print(f"Data{data.transforms[0]}")
         
         """
         p = np.array([tagPos.x, tagPos.y, tagPos.z])
@@ -273,9 +274,12 @@ def acuro_cb(data: FiducialTransformArray):
 
 def joint_state_cb(data:JointState):
     global current_joint_angles
-    #print(data.position)
+    #print(data)
     if len(data.position) == 4:
+        #print(data)
+        # data is returned as [j4, j3, j2, j1] but desired posed saved as [j1, j2, j3, j4]
         current_joint_angles = list(data.position)
+        current_joint_angles.reverse()
 
 def init():
     # Initialise node with any node name
@@ -283,7 +287,7 @@ def init():
     global pub
     global desired_pose_pub
     global gripper_pub
-
+    global rpi
 
     rpi = pigpio.pi()
     rpi.set_mode(18, pigpio.OUTPUT)
@@ -360,13 +364,28 @@ def init():
 
 def move_to_home():
     global desired_pose_pub
-
+    global desired_joint_angles
+    global current_joint_angles
+    
     msg = Pose()
     msg.position.x = 100
     msg.position.y = 100
     msg.position.z = 100
     desired_pose_pub.publish(msg)
-    print("got to end of move to home")
+    arm_in_place = False
+    while(not arm_in_place):
+        global desired_joint_angles
+        print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
+        diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
+        diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
+        diff_j4 = np.abs(desired_joint_angles[3] - current_joint_angles[3])
+    
+        #print(f"j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
+        if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
+            arm_in_place = True
+    
+    print("got home")
     
 def pickup_cube(cube: Cube):
     global desired_pose_pub
@@ -388,7 +407,7 @@ def pickup_cube(cube: Cube):
 
     while(not arm_in_place):
         global desired_joint_angles
-        #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
         diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
@@ -399,7 +418,8 @@ def pickup_cube(cube: Cube):
             arm_in_place = True
 
     # grab box (1500 value)
-    gripper_pub.pub(Float32(1500))
+    gripper_pub.publish(Float32(1250))
+    print("closed gripper")
 
 def main():
     # initialise nodes and gripper
@@ -414,10 +434,12 @@ def main():
 
     # add initial delay so dynamixel can load
     rospy.sleep(3)
-    """
-    testSpeed = rospy.Rate(10)
-
-    while(True):
+    
+    
+    testSpeed = rospy.Rate(1)
+    
+    while not rospy.is_shutdown():
+        print(state)
         if state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
@@ -426,14 +448,12 @@ def main():
             # check if there has been a cube added to the system
             if len(cubes) > 0:
                 id, cube = list(cubes.items())[0]
-                print(f"number of hustory: {len(cube.history)}")
                 if len(cube.history) == 5:
-                    print("test")
                     current = cube.history[0]
                     oldest = cube.history[4]
 
                     dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
-                    print(f"distance {dist}")
+                    
                     if dist < 5:
                         stopped = True
 
@@ -478,7 +498,7 @@ def main():
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-    """
+          
     rospy.spin()
 
 if __name__ == '__main__':
