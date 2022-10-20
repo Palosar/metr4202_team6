@@ -27,8 +27,29 @@ from fiducial_msgs.msg import FiducialTransformArray
 import pigpio
 
 
-# command of ximearos
-# echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb
+import math
+ 
+def euler_from_quaternion(x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+     
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians
 
 ##finds the inverse kinematics angles for the robot to get to x,y,z 
 #zero position at joint 1 with x and y pos as written on robot
@@ -340,6 +361,7 @@ def main():
     global state
     global states
 
+    testSpeed = rospy.Rate(5)
 
     while(True):
         if state == states.get("PREDICTION"):
@@ -369,7 +391,7 @@ def main():
             move_to_home()
             # rospy.sleep(2)
             # count += 1
-            # state = states["PREDICTION"]
+            state = states["PREDICTION"]
 
         elif state == states.get("PICKUP"):
             # find closest box
@@ -389,7 +411,6 @@ def main():
             state = states["HOMESTATE"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
-        testSpeed = rospy.Rate(5)
         testSpeed.sleep()
 
     rospy.spin()
