@@ -339,18 +339,15 @@ def main():
     global cubes                    # dictionary of cubes detected in the system
     global state
     global states
-    global time
-    count = 0
+
+
     while(True):
         if state == states.get("PREDICTION"):
-            # rospy.loginfo(count)
-            # wait till cubes stop
-            stopped = False # FOR TESTING
-
-            # check if more than 1 cube exists
-            # TODO: check rotation and if you need to detect time
-            print("test1")
-            print(f"number of cubes: {len(cubes)}")
+            # implementation 1:
+            # detect when cubes have stopped and detect from there
+            stopped = False
+            
+            # check if there has been a cube added to the system
             if len(cubes) > 0:
                 id, cube = list(cubes.items())[0]
                 print(f"number of hustory: {len(cube.history)}")
@@ -364,7 +361,6 @@ def main():
                     if dist < 5:
                         stopped = True
 
-            print("test2")
             if stopped:
                 # change to PICKUP state
                 state = states["PICKUP"]
