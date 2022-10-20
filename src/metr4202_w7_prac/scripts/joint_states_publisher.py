@@ -141,18 +141,22 @@ def invk2(x,y,z):
         # Set header with current time
         header=Header(stamp=rospy.Time.now()),
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
-        name=['joint_1', 'joint_2', 'joint_3', 'joint_4']
+        name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
+        position=[best_solution[0], best_solution[1], best_solution[2], best_solution[3]],
+        velocity=[0.1, 0.1, 0.1, 0.1],
+        effort=[20, 20, 20, 20]
     )
     
     print(best_solution)
     
     # put joint messages into msg
+    """
     msg.position = [
         best_solution[0],
         best_solution[1],
         best_solution[2],
         best_solution[3]
-    ]
+    ]"""
      
     return(msg)
 
@@ -173,7 +177,7 @@ def inverse_kinematics(pose: Pose) -> JointState:
     global pub
     global desired_joint_angles
     # TODO: Have fun :)
-    rospy.loginfo(f'Got desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
+    #rospy.loginfo(f'Got desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
     
     desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
     desired_joint_angles = desired_jstate.position
@@ -225,8 +229,9 @@ def acuro_cb(data: FiducialTransformArray):
 
 def joint_state_cb(data:JointState):
     global current_joint_angles
-
-    current_joint_angles = data.position
+    #print(data.position)
+    if len(data.position) == 4:
+        current_joint_angles = list(data.position)
 
 def init():
     # Initialise node with any node name
@@ -250,7 +255,7 @@ def init():
     desired_pose_pub = rospy.Publisher(
         'desired_pose',
         Pose,
-        queue_size=10
+        queue_size=1
     )
 
     # publisher for gripper
@@ -317,6 +322,7 @@ def move_to_home():
     msg.position.y = 100
     msg.position.z = 100
     desired_pose_pub.publish(msg)
+    print("got to end of move to home")
     
 def pickup_cube(cube: Cube):
     global desired_pose_pub
@@ -338,13 +344,14 @@ def pickup_cube(cube: Cube):
 
     while(not arm_in_place):
         global desired_joint_angles
-        print(f"{desired_joint_angles}")
-        diff_j1 = np.abs(desired_joint_angles.position[0] - current_joint_angles[0])
-        diff_j2 = np.abs(desired_joint_angles.position[1] - current_joint_angles[1])
-        diff_j3 = np.abs(desired_joint_angles.position[2] - current_joint_angles[2])
-        diff_j4 = np.abs(desired_joint_angles.position[3] - current_joint_angles[3])
+        #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
+        diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
+        diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
+        diff_j4 = np.abs(desired_joint_angles[3] - current_joint_angles[3])
     
-        if diff_j1 < 0.01 and diff_j2 < 0.01 and diff_j3 < 0.01 and diff_j4 < 0.01:
+        #print(f"j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
+        if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
             arm_in_place = True
 
     # grab box (1500 value)
@@ -361,7 +368,9 @@ def main():
     global state
     global states
 
-    testSpeed = rospy.Rate(5)
+    rospy.sleep(3)
+
+    testSpeed = rospy.Rate(1)
 
     while(True):
         if state == states.get("PREDICTION"):
@@ -391,6 +400,7 @@ def main():
             move_to_home()
             # rospy.sleep(2)
             # count += 1
+            print("got here")
             state = states["PREDICTION"]
 
         elif state == states.get("PICKUP"):
@@ -407,7 +417,7 @@ def main():
         elif state == states.get("DROP_OFF"):
             # temporaryly move to home position and drop it there
             move_to_home()
-            gripper_pub.pub(Float32(2000))
+            gripper_pub.publish(Float32(2000))
             state = states["HOMESTATE"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
