@@ -181,7 +181,7 @@ def inverse_kinematics(pose: Pose) -> JointState:
     
     desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
     desired_joint_angles = desired_jstate.position
-    print(f"from invk{desired_joint_angles}")
+    # print(f"from invk{desired_joint_angles}")
     pub.publish(desired_jstate)
 
 # grippper callback checks if grip value is not outside of limits and sets it
@@ -368,9 +368,10 @@ def main():
     global state
     global states
 
+    # add initial delay so dynamixel can load
     rospy.sleep(3)
 
-    testSpeed = rospy.Rate(1)
+    testSpeed = rospy.Rate(10)
 
     while(True):
         if state == states.get("PREDICTION"):
@@ -397,24 +398,35 @@ def main():
                 state = states["PICKUP"]
 
         elif state == states.get("HOMESTATE"):
+            # TODO:
+            #   - 
             move_to_home()
-            # rospy.sleep(2)
-            # count += 1
-            print("got here")
             state = states["PREDICTION"]
 
         elif state == states.get("PICKUP"):
-            # find closest box
-            # pickup the first box
+            # TODO:
+            #   - check which block to pickup
+            #   - pickup block
+            #   - move out of the way
+            #   - move
+
+            # CURRENT IMPLEMENTATION: pickup the first box
             id, cube = list(cubes.items())[0]
             pickup_cube(cube)
             state = states["COLOUR_CHECK"]
 
         elif state == states.get("COLOUR_CHECK"):
+            # TODO:
+            #   - check if the block has been picked up
+            #   - check the colour of block
+            #   - drop block for designated colour
+            #   - remove from dictionary of blocks
+
             move_to_home()
             state = states["DROP_OFF"]
 
         elif state == states.get("DROP_OFF"):
+            # TODO: drop at detected colour
             # temporaryly move to home position and drop it there
             move_to_home()
             gripper_pub.publish(Float32(2000))
@@ -427,3 +439,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
