@@ -395,8 +395,8 @@ class RobotArm:
         testSpeed = rospy.Rate(1)
     
         while not rospy.is_shutdown():
-            print(state)
-            if state == self.states.get("PREDICTION"):
+            print(self.state)
+            if self.state == self.states.get("PREDICTION"):
                 # implementation 1:
                 # detect when cubes have stopped and detect from there
                 stopped = False
@@ -415,15 +415,15 @@ class RobotArm:
 
                 if stopped:
                     # change to PICKUP state
-                    state = self.states["PICKUP"]
+                    self.state = self.states["PICKUP"]
 
-            elif state == self.states.get("HOMESTATE"):
+            elif self.state == self.states.get("HOMESTATE"):
                 # TODO:
                 #   - 
                 self.move_to_home()
-                state = self.states["PREDICTION"]
+                self.state = self.states["PREDICTION"]
 
-            elif state == self.states.get("PICKUP"):
+            elif self.state == self.states.get("PICKUP"):
                 # TODO:
                 #   - check which block to pickup
                 #   - pickup block
@@ -433,9 +433,9 @@ class RobotArm:
                 # CURRENT IMPLEMENTATION: pickup the first box
                 id, cube = list(self.cubes.items())[0]
                 self.pickup_cube(cube)
-                state = self.states["COLOUR_CHECK"]
+                self.state = self.states["COLOUR_CHECK"]
 
-            elif state == self.states.get("COLOUR_CHECK"):
+            elif self.state == self.states.get("COLOUR_CHECK"):
                 # TODO:
                 #   - check if the block has been picked up
                 #   - check the colour of block
@@ -443,14 +443,14 @@ class RobotArm:
                 #   - remove from dictionary of blocks
 
                 self.move_to_home()
-                state = self.states["DROP_OFF"]
+                self.state = self.states["DROP_OFF"]
 
-            elif state == self.states.get("DROP_OFF"):
+            elif self.state == self.states.get("DROP_OFF"):
                 # TODO: drop at detected colour
                 # temporaryly move to home position and drop it there
                 self.move_to_home()
-                gripper_pub.publish(Float32(2000))
-                state = self.states["HOMESTATE"]
+                self.gripper_pub.publish(Float32(2000))
+                self.state = self.states["HOMESTATE"]
             # You spin me right round baby, right round...
             # Just stops Python from exiting and executes callbacks
             testSpeed.sleep()
