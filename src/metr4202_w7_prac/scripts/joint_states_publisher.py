@@ -180,7 +180,7 @@ class RobotArm:
 
     ##finds the inverse kinematics angles for the robot to get to x,y,z 
     #zero position at joint 1 with x and y pos as written on robot
-    def invk2(x,y,z):
+    def invk2(self,x,y,z):
 
 
         #robot arm lengths
@@ -355,6 +355,7 @@ class RobotArm:
         msg.position.y = 100
         msg.position.z = 100
         self.desired_pose_pub.publish(msg)
+        rospy.s
         self.check_arm_in_place()
         
     def check_arm_in_place(self):
