@@ -21,23 +21,28 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose
 from std_msgs.msg import Float32
 from fiducial_msgs.msg import FiducialTransformArray
+from std_msgs.msg import ColorRGBA
 
 
 # imports for gripper
 import pigpio
 import math
+import time
 
 class Cube:
     def __init__(self, id):
         self.id = id
         self.history = []
+        self.time_his = []
         self.last_detected_seq = -1
 
     def update_pos(self, x, y, z):
         if len(self.history) == 5:
-            temp = self.history.pop(0)
-
+            self.history.pop(0)
+            self.time_his.pop(0)
+            
         self.history.append([x, y, z])
+        self.time_his.append(time.time())
 
 ######################################
 # HELPER FUNCTIONS
@@ -58,7 +63,7 @@ def TransCamCen(z_rot, p):
     I = np.eye(3)
 
     # Tag side length
-    L = 28 #mm
+    L = 0 #mm
     pcor_cen = np.array([L/2, L/2, 0])
     # transformation from corner of tag to centre
     Tcor_cen = RpToTrans(I, pcor_cen)
@@ -112,7 +117,7 @@ def invk2(x,y,z):
     L1 = 95 
     L2 = 117.5 
     L3 = 95 
-    L4 = 80
+    L4 = 70
 
 
     phi = -np.array((0,1,2,3,4))*np.pi/8 #angle the gripper makes from horizontal
@@ -127,14 +132,15 @@ def invk2(x,y,z):
  
 
         if (np.sqrt(pwx**2 + pwy**2) <= L2+L3): #condition for solution to exist
-
+            print(x,y,z)
             c2 = (pwx**2 + pwy**2 - L2**2 - L3**2)/(2*L2*L3) #cosine rule
 
-
-
-            v3_1 = -np.arccos(c2)  #elbow-up position
-            v3_2 = +np.arccos(c2)  #elbow-down position
-
+            try:
+                v3_1 = -np.arccos(c2)  #elbow-up position
+                v3_2 = +np.arccos(c2)  #elbow-down position
+            except:
+                print(f"error in invk2 {c2}")
+                
             alpha = np.arctan2(pwy,pwx) #angle from zero position to joint 4
             beta = np.arccos((pwx**2+pwy**2+L2**2-L3**2)/(2 * L2 *np.sqrt(pwx**2 + pwy**2 )))
   
@@ -268,6 +274,13 @@ def init():
         JointState,
         joint_state_cb
     )
+    
+    # subscriber for colour
+    colour_sub = rospy.Subscriber(
+        'test_colour',
+        ColorRGBA,
+        colour_check_cb
+    )
 
     global cubes        # dictionary of cubes detected in the system
     global states       # dictionary of states
@@ -291,10 +304,20 @@ def check_arm_in_place():
     """
     global desired_joint_angles
     global current_joint_angles
+    global state
+    global states
 
+    initial_time = time.time()
     arm_in_place = False
     
     while(not arm_in_place):
+        current_time = time.time()
+        
+        if current_time - initial_time > 3:
+            state = states["HOMESTATE"]
+            print("arm_in_place reset to homestate")
+            break
+            
         # add delay incase new information needs to be proccessed
         rospy.sleep(0.1)
         #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
@@ -302,11 +325,15 @@ def check_arm_in_place():
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
         diff_j4 = np.abs(desired_joint_angles[3] - current_joint_angles[3])
-    
-        #print(f"j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
+        
+        
+        #print("Arm not in place")
+        #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
         if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
             arm_in_place = True
-
+    print("Arm set in place")
+        
+    
 def move_to_home():
     """
     Moves to a default position
@@ -314,7 +341,36 @@ def move_to_home():
     global desired_pose_pub
 
     msg = Pose()
-    msg.position.x = 100
+    msg.position.x = 1
+    msg.position.y = -100
+    msg.position.z = 100
+    desired_pose_pub.publish(msg)
+
+    check_arm_in_place()
+
+def move_to_pos(x, y, z):
+    """
+    Moves to a position
+    """
+    global desired_pose_pub
+
+    msg = Pose()
+    msg.position.x = x
+    msg.position.y = y
+    msg.position.z = z
+    desired_pose_pub.publish(msg)
+
+    check_arm_in_place()
+        
+    
+def move_to_init():
+    """
+    Moves to a default position
+    """
+    global desired_pose_pub
+    
+    msg = Pose()
+    msg.position.x = 150
     msg.position.y = 100
     msg.position.z = 100
     desired_pose_pub.publish(msg)
@@ -340,9 +396,10 @@ def pickup_cube(cube: Cube):
 
     desired_pose_pub.publish(msg)
     check_arm_in_place()
-
+    rospy.sleep(3)
     # grab box (1500 value)
-    gripper_pub.publish(Float32(1250))
+    gripper_pub.publish(Float32(1150))
+    rospy.sleep(3)
     print("closed gripper")
 
 ################################################################
@@ -358,7 +415,7 @@ def invk_cb(pose: Pose):
     desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
     desired_joint_angles = desired_jstate.position
     
-    print(f"from invk{desired_joint_angles}")
+    #print(f"from invk{desired_joint_angles}")
     pub.publish(desired_jstate)
 
 # grippper callback checks if grip value is not outside of limits and sets it
@@ -380,76 +437,84 @@ def acuro_cb(data: FiducialTransformArray):
 
     # if there is a cube detected, transforms array > 0
     if len(data.transforms) > 0:
-        # get main cube information
-        tagId = data.transforms[0].fiducial_id
-        tagPos = data.transforms[0].transform.translation
-        tagOrient = data.transforms[0].transform.rotation
-        
-        x, y, z = euler_from_quaternion(tagOrient.x, tagOrient.y, tagOrient.z, tagOrient.w)
-        
-        # convert pos data to array
-        p = np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000])
-        #print(f"this is p: {p}")
-        
-        # transformation from cam to cube center
-        T_cam_cubeCenter = TransCamCen(z, p)
-        #print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
-        
-        if tagId != ARM_ID and initialised:
-            # check if cube in cubelist already
-            if tagId not in cubes.keys():
-                newCube = Cube(tagId)
-                cubes[tagId] = newCube
-
-            # # transformation of camera from arm base
-            # Tsc = np.array([
-            #     [1, 0, 0, 0],
-            #     [0, 1, 0, -150],
-            #     [0, 0, -1, 420],
-            #     [0, 0, 0, 1]
-            # ])
-
-            # Tcs = np.linalg.inv(Tsc)
-
-            # print(f"SOURCE - CAM: \n{Tsc}")
-            # print(f"CAM - SOURCE: \n{Tcs}")
-
-            # convert cube position data 
-            V = np.dot(T_base_cam, 
-                    np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
-
-            # update cube position relative to arm base
-            cubes.get(tagId).update_pos(V[0], V[1], V[2])
-
-        elif tagId == ARM_ID and not initialised:
-            T_base_aruco = np.array([
-                [ 1, 0, 0, 45],
-                [ 0, 1, 0, 53],
-                [ 0, 0, 1,  0],
-                [ 0, 0, 0,  1],
-            ])
-
-            T_cam_aruco = np.array([
-                [1,  0,  0, p[0]],
-                [0, -1,  0, p[1]],
-                [0,  0, -1, p[2]],
-                [0,  0,  0,    1],
-            ])
+        for data_transform in data.transforms:
+            # get main cube information
             
-            T_base_cam = T_base_aruco @ T_cam_aruco
-            initialised = True
+            tagId = data_transform.fiducial_id
+            tagPos = data_transform.transform.translation
+            tagOrient = data_transform.transform.rotation
+            
+            x, y, z = euler_from_quaternion(tagOrient.x, tagOrient.y, tagOrient.z, tagOrient.w)
+            
+            # convert pos data to array
+            p = np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000])
+            #print(f"this is p: {p}")
+            
+            # transformation from cam to cube center
+            T_cam_cubeCenter = TransCamCen(z, p)
+            pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
+            #print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
+            
+            if tagId != ARM_ID and initialised:
+                # check if cube in cubelist already
+                if tagId not in cubes.keys():
+                    newCube = Cube(tagId)
+                    cubes[tagId] = newCube
+
+                # # transformation of camera from arm base
+                # Tsc = np.array([
+                #     [1, 0, 0, 0],
+                #     [0, 1, 0, -150],
+                #     [0, 0, -1, 420],
+                #     [0, 0, 0, 1]
+                # ])
+
+                # Tcs = np.linalg.inv(Tsc)
+
+                # print(f"SOURCE - CAM: \n{Tsc}")
+                # print(f"CAM - SOURCE: \n{Tcs}")
+
+                # convert cube position data 
+                V = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
+                #V = np.dot(T_base_cam, np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
+                        
+                #print("V", V)
+                # update cube position relative to arm base
+                cubes.get(tagId).update_pos(V[0], V[1], V[2])
+
+            elif tagId == ARM_ID and not initialised:
+                T_base_aruco = np.array([
+                    [ 1, 0, 0, 45],
+                    [ 0, 1, 0, 42],
+                    [ 0, 0, 1,  0],
+                    [ 0, 0, 0,  1],
+                ])
+
+                T_cam_aruco = np.array([
+                    [1,  0,  0, p[0]],
+                    [0, -1,  0, p[1]],
+                    [0,  0, -1, p[2]],
+                    [0,  0,  0,    1],
+                ])
+                
+                T_base_cam = T_cam_aruco @ T_base_aruco
+                initialised = True
+            
         
     pass
 
 def joint_state_cb(data:JointState):
     global current_joint_angles
-    #print(data)
     if len(data.position) == 4:
-        #print(data)
         # data is returned as [j4, j3, j2, j1] but desired posed saved as [j1, j2, j3, j4]
         current_joint_angles = list(data.position)
         current_joint_angles.reverse()
 
+def colour_check_cb(data:ColorRGBA):
+    global colour
+    colour["r"]=data.r
+    colour["g"]=data.g
+    colour["b"]=data.b
 
 ########
 # MAIN
@@ -465,6 +530,23 @@ def main():
     global state
     global states
     global initialised
+    global colour
+    global drop_off_colour
+    global drop_off_points
+    
+    
+    drop_off_points = {
+        0 : [150, 40, 60],    # red
+        1 : [50, 150, 60],    # green
+        2 : [-50, 150, 60],    # blue
+        3 : [-150, 40, 60],    # yellow
+    }
+        
+    colour = {
+        "r": 0,
+        "g": 0,
+        "b": 0
+    }
 
     initialised = False
 
@@ -473,34 +555,45 @@ def main():
     
     
     testSpeed = rospy.Rate(10)
-    
+
     while not rospy.is_shutdown():
-        print(state)
+        print(f"State: {state}")
         if state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
             stopped = False
-            
-            # check if there has been a cube added to the system
-            if len(cubes) > 0:
-                id, cube = list(cubes.items())[0]
-                if len(cube.history) == 5:
-                    current = cube.history[0]
-                    oldest = cube.history[4]
+            print(f"initialised: {initialised}") 
+            if initialised:
+                move_to_home()
+                # check if there has been a cube added to the system
+                print(f"number of cubes detected: {len(cubes)}")
+                
+                if len(cubes) > 0:
+                    id, cube = list(cubes.items())[0]
+                    if len(cube.history) == 5:
+                        current = cube.history[0]
+                        oldest = cube.history[4]
 
-                    dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
+                        dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
                     
-                    if dist < 5:
-                        stopped = True
+                        print(f"distance prediction value: {dist}")
+                        if dist < 5:
+                            stopped = True
 
-            if stopped:
-                # change to PICKUP state
-                state = states["PICKUP"]
+                if stopped:
+                    # change to PICKUP state
+                    state = states["PICKUP"]
 
         elif state == states.get("HOMESTATE"):
             # TODO:
             #   - 
-            move_to_home()
+            move_to_init()
+            # open gripper
+            gripper_pub.publish(Float32(2000))
+            print('out')
+            
+            # clear detected cubes
+            cubes.clear()
             state = states["PREDICTION"]
 
         elif state == states.get("PICKUP"):
@@ -513,6 +606,7 @@ def main():
             # CURRENT IMPLEMENTATION: pickup the first box
             id, cube = list(cubes.items())[0]
             pickup_cube(cube)
+            
             state = states["COLOUR_CHECK"]
 
         elif state == states.get("COLOUR_CHECK"):
@@ -522,19 +616,66 @@ def main():
             #   - drop block for designated colour
             #   - remove from dictionary of blocks
 
-            move_to_home()
-            state = states["DROP_OFF"]
 
+            move_to_home() # gotta change to colour check pos
+            block_removed = False
+            # check if cube still on the board
+            remove_id = []
+            for cube_id in cubes.keys():
+                current_time = time.time()
+                time_diff = current_time - cubes[cube_id].time_his[0]
+                print(time_diff) 
+                if time_diff > 10:
+                     remove_id.append(cube_id)
+                     block_removed = True
+            
+            for cube_id in remove_id:
+                cubes.pop(cube_id)
+            
+            if block_removed:
+                # move to colour check position
+                move_to_home()
+                rospy.sleep(2)
+                
+                # check colour
+                red = [255, 0, 0]
+                green = [0, 255, 0]
+                blue = [0, 0, 255]
+                yellow = [255, 255, 0]
+                test_colours = [red, green, blue, yellow]
+                
+                current_colour = [colour["r"], colour["g"], colour["b"]]
+                colour_index = -1
+                # colour diff max
+                min_colour_diff = 999
+                for i, colour_check in enumerate(test_colours):
+                    colour_diff = np.sqrt((colour_check[0]-current_colour[0])**2 + (colour_check[1]-current_colour[1])**2 + (colour_check[2]-current_colour[2])**2)
+                    if colour_diff < min_colour_diff:
+                        colour_index = i
+                        min_colour_diff = colour_diff
+                         
+                drop_off_colour = colour_index
+                state = states["DROP_OFF"]
+            else:
+                state = states["HOMESTATE"]
+                
         elif state == states.get("DROP_OFF"):
             # TODO: drop at detected colour
-            # temporaryly move to home position and drop it there
-            move_to_home()
+            # move to a drop off point
+            drop_off_point = drop_off_points[drop_off_colour]
+            move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
+            
+            rospy.sleep(2)
+            
+            # open gripper
             gripper_pub.publish(Float32(2000))
+            
+            rospy.sleep(2)
             state = states["HOMESTATE"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-          
+      
     rospy.spin()
 
 if __name__ == '__main__':
