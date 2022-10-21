@@ -415,10 +415,10 @@ def main():
     global states
 
     # add initial delay so dynamixel can load
-    rospy.sleep(3)
+    rospy.sleep(1)
     
     
-    testSpeed = rospy.Rate(1)
+    testSpeed = rospy.Rate(10)
     
     while not rospy.is_shutdown():
         print(state)
