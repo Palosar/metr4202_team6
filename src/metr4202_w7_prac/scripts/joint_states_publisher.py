@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-This script publishes a set of random joint states to the dynamixel controller.
-Use this to get an idea of how to code your inverse kinematics!
-"""
 
 # Funny code
 from cmath import pi
@@ -33,7 +29,6 @@ class Cube:
     def __init__(self, id):
         self.id = id
         self.history = []
-        self.time_his = []
         self.last_detected_seq = -1
 
     def update_pos(self, x, y, z):
@@ -42,7 +37,6 @@ class Cube:
             self.time_his.pop(0)
             
         self.history.append([x, y, z])
-        self.time_his.append(time.time())
 
 ######################################
 # HELPER FUNCTIONS
@@ -207,7 +201,30 @@ def invk2(x,y,z):
     
     return(msg)
 
-def init():
+def init_global_vars():
+
+    # setup gripper / gpio
+    global rpi
+    rpi = pigpio.pi()
+    rpi.set_mode(18, pigpio.OUTPUT)
+
+    global cubes        # dictionary of cubes detected in the system
+    cubes = {}
+
+    global states       # dictionary of states
+    global state        # current state of arm
+    states = {
+        "HOMESTATE" : 0,
+        "PREDICTION" : 1,
+        "PICKUP" : 2,
+        "COLOUR_CHECK" : 3,
+        "DROP_OFF" : 4
+    }
+
+    # begin project in homestate
+    state = states["HOMESTATE"]
+
+def init_sub_pub():
     """
     Initialises subscribers and publishers
     """
@@ -216,10 +233,6 @@ def init():
     global pub
     global desired_pose_pub
     global gripper_pub
-    global rpi
-
-    rpi = pigpio.pi()
-    rpi.set_mode(18, pigpio.OUTPUT)
 
     # Create publisher
     pub = rospy.Publisher(
@@ -250,16 +263,15 @@ def init():
     )
 
     # subscriber for gripper
+    # NOTE: gripper values 
+    #750 is the closed position
+    #1150 is the grip box position
+    #2000 is the open position
     grip_sub = rospy.Subscriber(
         'gripper_value',    # topic name
         Float32,            # msg type
         gripper_cb          # callback function
     )
-    # NOTE: gripper values 
-    #1000 is the closed position
-    #1500 is the grip box position
-    #2000 is the open position
-
 
     # subscriber for fiducial transforms
     tag_tracker = rospy.Subscriber(
@@ -277,26 +289,11 @@ def init():
     
     # subscriber for colour
     colour_sub = rospy.Subscriber(
-        'test_colour',
+        'test_color',
         ColorRGBA,
         colour_check_cb
     )
 
-    global cubes        # dictionary of cubes detected in the system
-    global states       # dictionary of states
-    global state        # current state of arm
-    cubes = {}
-
-    states = {
-        "PREDICTION" : 0,
-        "HOMESTATE" : 1,
-        "PICKUP" : 2,
-        "COLOUR_CHECK" : 3,
-        "DROP_OFF" : 4
-    }
-
-    # begin project in homestate
-    state = states["HOMESTATE"]
 
 def check_arm_in_place():
     """
@@ -428,7 +425,7 @@ def gripper_cb(gripValue: Float32):
         rpi.set_servo_pulsewidth(18,gripValue.data) 
         print(f"Gripper state value changed to: + {gripValue.data}")
 
-def acuro_cb(data: FiducialTransformArray):
+def acuro_cb(data: FiducialTransformArray): 
     global cubes
     global T_base_cam
     global initialised
@@ -440,14 +437,14 @@ def acuro_cb(data: FiducialTransformArray):
         for data_transform in data.transforms:
             # get main cube information
             
-            tagId = data_transform.fiducial_id
-            tagPos = data_transform.transform.translation
-            tagOrient = data_transform.transform.rotation
+            tag_id = data_transform.fiducial_id
+            tag_pos = data_transform.transform.translation
+            tag_rot = data_transform.transform.rotation
             
-            x, y, z = euler_from_quaternion(tagOrient.x, tagOrient.y, tagOrient.z, tagOrient.w)
+            x, y, z = euler_from_quaternion(tag_rot.x, tag_rot.y, tag_rot.z, tag_rot.w)
             
             # convert pos data to array
-            p = np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000])
+            p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
             #print(f"this is p: {p}")
             
             # transformation from cam to cube center
@@ -455,11 +452,11 @@ def acuro_cb(data: FiducialTransformArray):
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
             #print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
             
-            if tagId != ARM_ID and initialised:
+            if tag_id != ARM_ID and initialised:
                 # check if cube in cubelist already
-                if tagId not in cubes.keys():
-                    newCube = Cube(tagId)
-                    cubes[tagId] = newCube
+                if tag_id not in cubes.keys():
+                    newCube = Cube(tag_id)
+                    cubes[tag_id] = newCube
 
                 # # transformation of camera from arm base
                 # Tsc = np.array([
@@ -480,9 +477,9 @@ def acuro_cb(data: FiducialTransformArray):
                         
                 #print("V", V)
                 # update cube position relative to arm base
-                cubes.get(tagId).update_pos(V[0], V[1], V[2])
+                cubes.get(tag_id).update_pos(V[0], V[1], V[2])
 
-            elif tagId == ARM_ID and not initialised:
+            elif tag_id == ARM_ID and not initialised:
                 T_base_aruco = np.array([
                     [ 1, 0, 0, 45],
                     [ 0, 1, 0, 42],
@@ -521,7 +518,7 @@ def colour_check_cb(data:ColorRGBA):
 ########
 def main():
     # initialise nodes and gripper
-    init()
+    init_sub_pub()
 
     # global variables
     global current_joint_angles     # array of current angles in radians
@@ -616,7 +613,6 @@ def main():
             #   - drop block for designated colour
             #   - remove from dictionary of blocks
 
-
             move_to_home() # gotta change to colour check pos
             block_removed = False
             # check if cube still on the board
@@ -636,25 +632,7 @@ def main():
                 # move to colour check position
                 move_to_home()
                 rospy.sleep(2)
-                
-                # check colour
-                red = [255, 0, 0]
-                green = [0, 255, 0]
-                blue = [0, 0, 255]
-                yellow = [255, 255, 0]
-                test_colours = [red, green, blue, yellow]
-                
-                current_colour = [colour["r"], colour["g"], colour["b"]]
-                colour_index = -1
-                # colour diff max
-                min_colour_diff = 999
-                for i, colour_check in enumerate(test_colours):
-                    colour_diff = np.sqrt((colour_check[0]-current_colour[0])**2 + (colour_check[1]-current_colour[1])**2 + (colour_check[2]-current_colour[2])**2)
-                    if colour_diff < min_colour_diff:
-                        colour_index = i
-                        min_colour_diff = colour_diff
-                         
-                drop_off_colour = colour_index
+
                 state = states["DROP_OFF"]
             else:
                 state = states["HOMESTATE"]
@@ -677,6 +655,27 @@ def main():
         testSpeed.sleep()
       
     rospy.spin()
+
+def colour_check():
+    # check colour
+    red = [255, 0, 0]
+    green = [0, 255, 0]
+    blue = [0, 0, 255]
+    yellow = [255, 255, 0]
+    test_colours = [red, green, blue, yellow]
+    
+    current_colour = [colour["r"], colour["g"], colour["b"]]
+    colour_index = -1
+    # colour diff max
+    min_colour_diff = 999
+    for i, colour_check in enumerate(test_colours):
+        colour_diff = np.sqrt((colour_check[0]-current_colour[0])**2 + (colour_check[1]-current_colour[1])**2 + (colour_check[2]-current_colour[2])**2)
+        if colour_diff < min_colour_diff:
+            colour_index = i
+            min_colour_diff = colour_diff
+                
+    return colour_index
+
 
 if __name__ == '__main__':
     main()
