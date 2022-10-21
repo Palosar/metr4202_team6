@@ -520,6 +520,7 @@ def colour_check_cb(data:ColorRGBA):
 def main():
     # initialise nodes and gripper
     init_sub_pub()
+    init_global_vars()
 
     # global variables
     global current_joint_angles     # array of current angles in radians
@@ -633,7 +634,7 @@ def main():
                 # move to colour check position
                 move_to_home()
                 rospy.sleep(2)
-
+                drop_off_colour = colour_check()
                 state = states["DROP_OFF"]
             else:
                 state = states["HOMESTATE"]
