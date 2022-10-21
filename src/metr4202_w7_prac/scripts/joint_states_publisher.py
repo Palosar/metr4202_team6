@@ -203,7 +203,7 @@ def invk_cb(pose: Pose):
     
 <<<<<<< HEAD
     """    
-    def euler_from_quaternion(self, x, y, z, w):
+    def euler_from_quaternion(x, y, z, w):
             """
             Convert a quaternion into euler angles (roll, pitch, yaw)
             roll is rotation around x in radians (counterclockwise)
@@ -227,7 +227,7 @@ def invk_cb(pose: Pose):
 
     ##finds the inverse kinematics angles for the robot to get to x,y,z 
     #zero position at joint 1 with x and y pos as written on robot
-    def invk2(self, x, y, z):
+    def invk2(x,y,z):
 
 
         #robot arm lengths
@@ -467,11 +467,9 @@ def joint_state_cb(data:JointState):
         msg.position.y = 100
         msg.position.z = 100
         self.desired_pose_pub.publish(msg)
-        
         self.check_arm_in_place()
         
     def check_arm_in_place(self):
-        rospy.sleep(1)
         arm_in_place = False
         
         while(not arm_in_place):
@@ -610,6 +608,7 @@ def pickup_cube(cube: Cube):
 
 <<<<<<< HEAD
         self.desired_pose_pub.publish(msg)
+
         self.check_arm_in_place()
 =======
     # send desired position to desired pose topic
