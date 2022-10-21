@@ -277,7 +277,7 @@ def init():
     
     # subscriber for colour
     colour_sub = rospy.Subscriber(
-        'test_colour',
+        'test_color',
         ColorRGBA,
         colour_check_cb
     )
@@ -467,7 +467,7 @@ def acuro_cb(data: FiducialTransformArray):
                 #     [0, 1, 0, -150],
                 #     [0, 0, -1, 420],
                 #     [0, 0, 0, 1]
-                # ])
+                # ]) 
 
                 # Tcs = np.linalg.inv(Tsc)
 
@@ -516,6 +516,7 @@ def colour_check_cb(data:ColorRGBA):
     colour["g"]=data.g
     colour["b"]=data.b
 
+
 ########
 # MAIN
 ########
@@ -549,7 +550,7 @@ def main():
     }
 
     initialised = False
-
+    
     # add initial delay so dynamixel can load
     rospy.sleep(1)
     
@@ -675,7 +676,7 @@ def main():
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-      
+        
     rospy.spin()
 
 if __name__ == '__main__':
