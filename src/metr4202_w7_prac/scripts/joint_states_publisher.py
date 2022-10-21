@@ -278,14 +278,12 @@ class RobotArm:
 
     # This one doesn't actually do it though...
     def invk_cb(self, pose: Pose):
-        global pub
-        global desired_joint_angles
         #rospy.loginfo(f'Got desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
         
         desired_jstate = self.invk2(pose.position.x, pose.position.y, pose.position.z)
-        desired_joint_angles = desired_jstate.position
+        self.desired_joint_angles = desired_jstate.position
         
-        print(f"from invk{desired_joint_angles}")
+        print(f"from invk{self.desired_joint_angles}")
         self.pub.publish(desired_jstate)
 
     # grippper callback checks if grip value is not outside of limits and sets it
