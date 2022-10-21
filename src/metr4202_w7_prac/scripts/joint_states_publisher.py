@@ -376,7 +376,7 @@ def acuro_cb(data: FiducialTransformArray):
     global T_base_cam
     global initialised
     # NOTE: must add ignorance to arm tag
-    ARM_ID = 0
+    ARM_ID = 19
 
     # if there is a cube detected, transforms array > 0
     if len(data.transforms) > 0:
@@ -389,11 +389,11 @@ def acuro_cb(data: FiducialTransformArray):
         
         # convert pos data to array
         p = np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000])
-        print(f"this is p: {p}")
+        #print(f"this is p: {p}")
         
         # transformation from cam to cube center
         T_cam_cubeCenter = TransCamCen(z, p)
-        print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
+        #print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
         
         if tagId != ARM_ID and initialised:
             # check if cube in cubelist already
@@ -428,12 +428,13 @@ def acuro_cb(data: FiducialTransformArray):
             ])
 
             T_cam_aruco = np.array([
-                [1, 0, 0, tagPos.x],
-                [1, 0, 0, tagPos.x],
-                [1, 0, 0, tagPos.x],
-                [1, 0, 0, tagPos.x],
+                [1,  0,  0, p[0]],
+                [0, -1,  0, p[1]],
+                [0,  0, -1, p[2]],
+                [0,  0,  0,    1],
             ])
-
+            
+            T_base_cam = T_base_aruco @ T_cam_aruco
             initialised = True
         
     pass
