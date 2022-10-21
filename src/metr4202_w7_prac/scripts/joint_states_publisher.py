@@ -401,24 +401,26 @@ def acuro_cb(data: FiducialTransformArray):
                 newCube = Cube(tagId)
                 cubes[tagId] = newCube
 
-            # transformation of camera from arm base
-            Tsc = np.array([
-                [1, 0, 0, 0],
-                [0, 1, 0, -150],
-                [0, 0, -1, 420],
-                [0, 0, 0, 1]
-            ])
+            # # transformation of camera from arm base
+            # Tsc = np.array([
+            #     [1, 0, 0, 0],
+            #     [0, 1, 0, -150],
+            #     [0, 0, -1, 420],
+            #     [0, 0, 0, 1]
+            # ])
 
-            Tcs = np.linalg.inv(Tsc)
+            # Tcs = np.linalg.inv(Tsc)
 
-            print(f"SOURCE - CAM: \n{Tsc}")
-            print(f"CAM - SOURCE: \n{Tcs}")
+            # print(f"SOURCE - CAM: \n{Tsc}")
+            # print(f"CAM - SOURCE: \n{Tcs}")
 
             # convert cube position data 
-            V = np.dot(Tsc, np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
+            V = np.dot(T_base_cam, 
+                    np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
 
             # update cube position relative to arm base
             cubes.get(tagId).update_pos(V[0], V[1], V[2])
+
         elif tagId == ARM_ID and not initialised:
             T_base_aruco = np.array([
                 [ 1, 0, 0, 45],
