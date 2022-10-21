@@ -29,6 +29,7 @@ class Cube:
     def __init__(self, id):
         self.id = id
         self.history = []
+        self.time_his = []
         self.last_detected_seq = -1
 
     def update_pos(self, x, y, z):
@@ -37,6 +38,7 @@ class Cube:
             self.time_his.pop(0)
             
         self.history.append([x, y, z])
+        self.time_his.append(time.time())
 
 ######################################
 # HELPER FUNCTIONS
