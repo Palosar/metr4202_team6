@@ -124,11 +124,11 @@ def invk2(x,y,z):
 
     for angle in phi: #iterates over the gripper angles
         pwx = np.sqrt(x**2+y**2) - L4*np.cos(angle) #distance of of joint 4 on x-y plane from zero position
-        pwy = z - L4*np.sin(angle) - L1 #height position of joint 4
+        pwy = z- L4*np.sin(angle) - L1 + 18*np.cos(angle) #height position of joint 4
  
 
         if (np.sqrt(pwx**2 + pwy**2) <= L2+L3): #condition for solution to exist
-            print(x,y,z)
+
             c2 = (pwx**2 + pwy**2 - L2**2 - L3**2)/(2*L2*L3) #cosine rule
 
             try:
@@ -154,8 +154,8 @@ def invk2(x,y,z):
             # might need to change depending on which way the robot joints actually move icr
             theta3_1 = -v3_1
             theta3_2 = -v3_2
-            theta4_1 = -v4_1
-            theta4_2 = -v4_2
+            theta4_1 = v4_1
+            theta4_2 = v4_2
 
             #check that solutions 1 and 2 are within joint angle contraints
             if (np.abs(theta2_1)< 1.7 and np.abs(theta3_1)<2.3 and np.abs(theta4_1)<1.6):
@@ -187,8 +187,11 @@ def invk2(x,y,z):
             solution[2] = -solution[2]
             solution[3] = -solution[3]
 
-        if (np.sum(np.abs(solution)) < np.sum(np.abs(best_solution))):
+        if (np.abs(np.pi/2-solution[1]-solution[2]-solution[3]) \
+        > (np.abs(np.pi/2-best_solution[1]-best_solution[2]-best_solution[3]))):
             best_solution = solution
+            print(solution)
+            print('Phi', np.abs(np.pi/2-solution[1]-solution[2]-solution[3]))
 
     # Create message of type JointState
     msg = JointState(
@@ -346,6 +349,21 @@ def move_to_home():
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()
+    
+    
+def move_to_colour_check():
+    """
+    Moves to a default position for colour checking
+    """
+    global desired_pose_pub
+
+    msg = Pose()
+    msg.position.x = -1
+    msg.position.y = -180
+    msg.position.z = 240
+    desired_pose_pub.publish(msg)
+
+    check_arm_in_place()
 
 def move_to_pos(x, y, z):
     """
@@ -370,8 +388,8 @@ def move_to_init():
     
     msg = Pose()
     msg.position.x = 150
-    msg.position.y = 100
-    msg.position.z = 100
+    msg.position.y = 150
+    msg.position.z = 200
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()
@@ -386,19 +404,28 @@ def pickup_cube(cube: Cube):
     global current_joint_angles
 
     cube_last_pos = cube.history[-1]
+    
+    # send desired intermediate pose above cube for traj. control
+    msg = Pose()
+    msg.position.x = cube_last_pos[0] * 1 - 10
+    msg.position.y = cube_last_pos[1] * 1
+    msg.position.z = cube_last_pos[2] + 100
+
+    desired_pose_pub.publish(msg)
+    rospy.sleep(2)
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0]
-    msg.position.y = cube_last_pos[1]
-    msg.position.z = cube_last_pos[2]
+    msg.position.x = cube_last_pos[0] * 1.05 - 10
+    msg.position.y = cube_last_pos[1] * 1.05
+    msg.position.z = cube_last_pos[2] + 40
 
     desired_pose_pub.publish(msg)
     check_arm_in_place()
-    rospy.sleep(3)
+    rospy.sleep(1)
     # grab box (1500 value)
     gripper_pub.publish(Float32(1150))
-    rospy.sleep(3)
+    rospy.sleep(1)
     print("closed gripper")
 
 ################################################################
@@ -452,7 +479,7 @@ def acuro_cb(data: FiducialTransformArray):
             # transformation from cam to cube center
             T_cam_cubeCenter = TransCamCen(z, p)
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
-            #print(f"Transformation from cam to centre T{T_cam_cubeCenter}")
+            #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
             
             if tag_id != ARM_ID and initialised:
                 # check if cube in cubelist already
@@ -460,34 +487,32 @@ def acuro_cb(data: FiducialTransformArray):
                     newCube = Cube(tag_id)
                     cubes[tag_id] = newCube
 
-                # # transformation of camera from arm base
-                # Tsc = np.array([
-                #     [1, 0, 0, 0],
-                #     [0, 1, 0, -150],
-                #     [0, 0, -1, 420],
-                #     [0, 0, 0, 1]
-                # ]) 
 
-                # Tcs = np.linalg.inv(Tsc)
 
-                # print(f"SOURCE - CAM: \n{Tsc}")
-                # print(f"CAM - SOURCE: \n{Tcs}")
 
                 # convert cube position data 
-                V = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
+                #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
+                
+                T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
+                
+                p = T_s_cube_center[0:3, 3]
+                
                 #V = np.dot(T_base_cam, np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
                         
                 #print("V", V)
                 # update cube position relative to arm base
-                cubes.get(tag_id).update_pos(V[0], V[1], V[2])
+                cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
 
             elif tag_id == ARM_ID and not initialised:
                 T_base_aruco = np.array([
-                    [ 1, 0, 0, 45],
-                    [ 0, 1, 0, 42],
+                    [ 1, 0, 0, -45],
+                    [ 0, 1, 0, -42],
                     [ 0, 0, 1,  0],
                     [ 0, 0, 0,  1],
                 ])
+                
+              
+                print("T base aruco is initialized")
 
                 T_cam_aruco = np.array([
                     [1,  0,  0, p[0]],
@@ -496,7 +521,11 @@ def acuro_cb(data: FiducialTransformArray):
                     [0,  0,  0,    1],
                 ])
                 
-                T_base_cam = T_cam_aruco @ T_base_aruco
+                T_aruco_cam = np.linalg.inv(T_cam_aruco)
+                
+                T_base_cam = T_base_aruco @ T_aruco_cam
+                T_base_cam[0,3] = T_base_cam[0,3] + 30
+                T_base_cam[1,3] = T_base_cam[1,3]
                 initialised = True
             
         
@@ -537,10 +566,10 @@ def main():
     
     
     drop_off_points = {
-        0 : [150, 40, 60],    # red
-        1 : [50, 150, 60],    # green
-        2 : [-50, 150, 60],    # blue
-        3 : [-150, 40, 60],    # yellow
+        0 : [150, 40, 150],    # red
+        1 : [50, 200, 150],    # green
+        2 : [-50, 200, 100],    # blue
+        3 : [-150, 40, 150],    # yellow
     }
         
     colour = {
@@ -563,21 +592,21 @@ def main():
             # implementation 1:
             # detect when cubes have stopped and detect from there
             stopped = False
-            print(f"initialised: {initialised}") 
+            #print(f"initialised: {initialised}") 
             if initialised:
                 move_to_home()
                 # check if there has been a cube added to the system
-                print(f"number of cubes detected: {len(cubes)}")
+                #print(f"number of cubes detected: {len(cubes)}")
                 
                 if len(cubes) > 0:
                     id, cube = list(cubes.items())[0]
                     if len(cube.history) == 5:
                         current = cube.history[0]
                         oldest = cube.history[4]
-
+                        #print(f"current: {current}, oldest: {oldest}")
                         dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
                     
-                        print(f"distance prediction value: {dist}")
+                        #print(f"distance prediction value: {dist}")
                         if dist < 5:
                             stopped = True
 
@@ -617,7 +646,8 @@ def main():
             #   - drop block for designated colour
             #   - remove from dictionary of blocks
 
-            move_to_home() # gotta change to colour check pos
+            move_to_colour_check() # gotta change to colour check pos
+            rospy.sleep(2)
             block_removed = False
             # check if cube still on the board
             remove_id = []
@@ -625,7 +655,7 @@ def main():
                 current_time = time.time()
                 time_diff = current_time - cubes[cube_id].time_his[0]
                 print(time_diff) 
-                if time_diff > 10:
+                if time_diff > 3:
                      remove_id.append(cube_id)
                      block_removed = True
             
@@ -634,9 +664,10 @@ def main():
             
             if block_removed:
                 # move to colour check position
-                move_to_home()
+                move_to_colour_check()
                 rospy.sleep(2)
                 drop_off_colour = colour_check()
+                print('color: ', drop_off_colour)
                 state = states["DROP_OFF"]
             else:
                 state = states["HOMESTATE"]
@@ -647,13 +678,13 @@ def main():
             drop_off_point = drop_off_points[drop_off_colour]
             move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
             
-            rospy.sleep(2)
+            rospy.sleep(1)
             
             # open gripper
             gripper_pub.publish(Float32(2000))
             
-            rospy.sleep(2)
-            state = states["HOMESTATE"]
+            rospy.sleep(0.5)
+            state = states["PREDICTION"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
