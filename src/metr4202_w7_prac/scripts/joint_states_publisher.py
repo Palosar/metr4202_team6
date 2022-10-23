@@ -55,10 +55,10 @@ class Cube:
         # print(f"Cube ID: {self.id}, Time: {time.time()}, New Pos: {x}, {y}, {z}")
 
 ######################################
-# HELPER FUNCTIONS
+#         HELPER FUNCTIONS           #
 ######################################
 
-def zRotMatrix(theta):
+def z_rot_matrix(theta):
     """
     Calculates a rotation matrix in the z-axis given a theta angle.
     
@@ -73,7 +73,7 @@ def zRotMatrix(theta):
     return R
 
 #makes a transformation matrix
-def RpToTrans(R, p):
+def rp_to_trans(R, p):
     """
     Calculates the transformation matrix of the rotation and translation given
     a rotation matrix and translation vector.
@@ -88,7 +88,7 @@ def RpToTrans(R, p):
 
     return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
 
-def TransCamCen(z_rot, p):
+def cam_cen_trans(z_rot, p):
     """
     Calculates the transformation from the camera to the center of the aruco tag.
     
@@ -107,19 +107,19 @@ def TransCamCen(z_rot, p):
     L = 0 #mm
     pcor_cen = np.array([L/2, L/2, 0])
     # transformation from corner of tag to centre
-    Tcor_cen = RpToTrans(I, pcor_cen)
+    Tcor_cen = rp_to_trans(I, pcor_cen)
 
     #theta should be given from aruco
-    Rcam_cor = zRotMatrix(z_rot)
+    Rcam_cor = z_rot_matrix(z_rot)
 
-    Tcam_cor = RpToTrans(Rcam_cor, p)
+    Tcam_cor = rp_to_trans(Rcam_cor, p)
     # Transformation from camera to corner of arucotag
     Tcam_cen = np.dot(Tcam_cor, Tcor_cen)
 
     return Tcam_cen
 
 # transformation from s frame to centre of cube
-def TransSCen(Tcam_cen,Ts_cam):
+def s_cen_trans(Tcam_cen,Ts_cam):
     """
     Helper function to calculate the transformation between the center of a
     cube from the s-frame (base of the robot arm)
@@ -571,7 +571,7 @@ def colour_check():
     return colour_index
 
 ################################################################
-# CALLBACK FUNCTIONS
+#                 CALLBACK FUNCTIONS                           #
 ################################################################
 
 
@@ -598,9 +598,8 @@ def invk_cb(pose: Pose):
     except:
         state = states["PREDICTION"]
         cubes.clear()
-        print(f'Failed at desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
-            
-    #print(f"from invk{desired_joint_angles}")
+        print(f'Failed at desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')            
+    # print(f"from invk{desired_joint_angles}")
 
 def gripper_cb(gripValue: Float32):
     """
@@ -619,10 +618,15 @@ def gripper_cb(gripValue: Float32):
         # print(f"Gripper state value changed to: + {gripValue.data}")
 
 def acuro_cb(data: FiducialTransformArray): 
+    """
+    ROS subscriber callback which takes a FiducialTransformArray holding the transformations
+    and information about detected aruco tags.
+
+    Parameters:
+        data: FiducialTrnasformArray from ROS std_msgs holding detected aruco tag information
+    """
     global cubes
     global T_base_cam
-    # global initialised
-    # ARM_ID = 19
 
     # if there is a cube detected, transforms array > 0
     if len(data.transforms) > 0:
@@ -640,7 +644,7 @@ def acuro_cb(data: FiducialTransformArray):
             print(f"Cube corner position: {p}")
             
             # transformation from cam to cube center
-            T_cam_cubeCenter = TransCamCen(z_rot, p)
+            T_cam_cubeCenter = cam_cen_trans(z_rot, p)
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
             #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
             
@@ -660,12 +664,15 @@ def acuro_cb(data: FiducialTransformArray):
             
             # update cube position relative to arm base
             cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3], z_rot)
-                        
-
+                       
 def joint_state_cb(data:JointState):
     """
-    params data - the data of the currnet joint states
-    updates the global current-joint_angles varible
+    ROS subscriber callback which takes a JoinState std_msg which holds the current
+    information on dynamixel motors. Updates global variable holding the information
+    of current joint angles.
+
+    Paramaters:
+        data: the data of the currnet joint states
     """
     global current_joint_angles
     if len(data.position) == 4:
@@ -675,8 +682,11 @@ def joint_state_cb(data:JointState):
 
 def colour_check_cb(data:ColorRGBA):
     """
-    params data - the data of the currnet color read
-    updates the global current_colour varible
+    ROS subscriber callback which takes a ColorRGBA std_msg holding RGBA levels.
+    Updates the current colour being detected by camera.
+    
+    Paramaters:
+        data: the data of the currnet color read
     """
     global current_colour
     global states
@@ -688,9 +698,10 @@ def colour_check_cb(data:ColorRGBA):
         current_colour["b"]=data.b
         # print(f"Updated colour data to: {current_colour}")
 
-########
-# MAIN #
-########
+########################################
+#              MAIN                    #
+########################################
+
 def main():
     # initialise nodes and gripper
     init_sub_pub()
