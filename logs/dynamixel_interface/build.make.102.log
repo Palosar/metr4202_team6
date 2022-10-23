@@ -1,5 +1,5 @@
-[  0%] Built target std_msgs_generate_messages_nodejs
 [  0%] Built target sensor_msgs_generate_messages_nodejs
+[  0%] Built target std_msgs_generate_messages_nodejs
 [  0%] Built target _dynamixel_interface_generate_messages_check_deps_DataPorts
 [  0%] Built target _dynamixel_interface_generate_messages_check_deps_ServoDiags
 [  0%] Built target _dynamixel_interface_generate_messages_check_deps_ServoDiag

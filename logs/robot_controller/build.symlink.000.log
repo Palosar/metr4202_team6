@@ -1,0 +1,5 @@
+Symlinking /home/team6/catkin_ws/devel/lib/pkgconfig/robot_controller.pc
+Symlinking /home/team6/catkin_ws/devel/lib/robot_controller/cmake.lock
+Symlinking /home/team6/catkin_ws/devel/lib/robot_controller/robot_arm_controller.py
+Symlinking /home/team6/catkin_ws/devel/share/robot_controller/cmake/robot_controllerConfig.cmake
+Symlinking /home/team6/catkin_ws/devel/share/robot_controller/cmake/robot_controllerConfig-version.cmake
