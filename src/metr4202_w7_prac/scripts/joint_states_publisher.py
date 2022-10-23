@@ -121,8 +121,8 @@ def cam_cen_trans(z_rot, p):
 # transformation from s frame to centre of cube
 def s_cen_trans(Tcam_cen,Ts_cam):
     """
-    Helper function to calculate the transformation between the center of a
-    cube from the s-frame (base of the robot arm)
+    Calculates the transformation between the center of a cube 
+    from the s-frame (base of the robot arm)
     
     Parameters:
         Tcam_cen: transformation matrix from camera to centre of block
@@ -397,8 +397,8 @@ def init_sub_pub():
 
 def check_arm_in_place():
     """
-    Helper function which waits until the desired_joint_angles and 
-    current_joint_angles are in within a set error threshold (err_threshold).
+    Waits until the desired_joint_angles and current_joint_angles are 
+    in within a set error threshold (err_threshold).
     """
     global desired_joint_angles
     global current_joint_angles
@@ -440,8 +440,7 @@ def check_arm_in_place():
     
 def move_to_pos(x, y, z):
     """
-    Helper function which publishes a desired (x, y, z) position to the
-    ROS topic 'desired_pose'.
+    Publishes a desired (x, y, z) position to the ROS topic 'desired_pose'.
     
     Parameters:
         x: x-position relative to arm
@@ -460,7 +459,7 @@ def move_to_pos(x, y, z):
 
 def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
     """
-    Helper function to move robot arm to specific set of joint angles.
+    Moves robot arm to specific set of joint angles.
     
     Parameters:
         theta_1: joint 1 angle
@@ -483,8 +482,7 @@ def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
     
 def move_to_colour_check_pos():
     """
-    Helper function to move robot arm to a position used to check colour
-    of cube.
+    Moves robot arm to a position used to check colour of cube.
     """
     global pub
     global desired_joint_angles
