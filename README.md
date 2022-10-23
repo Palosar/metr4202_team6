@@ -30,7 +30,7 @@ In order to run the code the following has to be launched in 5 different termina
 #Terminal 4: (main project)
 	source devel/setup.bash
 	sudo pigpiod
-	roslaunch robot_arm_controller robot_arm.launch
+	roslaunch robot_controller robot_arm.launch
 	
 Terminal 5: (colour)
 	source devel/setup.bash
