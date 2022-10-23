@@ -60,8 +60,12 @@ class Cube:
 
 def zRotMatrix(theta):
     """
-    params: theta- angle rotate about z axis
-    returns: transformation matrix of rotation
+    Calculates a rotation matrix in the z-axis given a theta angle.
+    
+    Parameters:
+        theta: angle rotate about z axis
+    Returns:
+        Transformation matrix of rotation
     """
     R = np.array([[np.cos(theta), -np.sin(theta), 0],
                   [np.sin(theta), np.cos(theta), 0],
@@ -71,19 +75,30 @@ def zRotMatrix(theta):
 #makes a transformation matrix
 def RpToTrans(R, p):
     """
-    params - R : a rotation matrix
-    params - p: a translation vector 3x1
-    returns - the trasnformation matrix of the rotation and translation R and p
+    Calculates the transformation matrix of the rotation and translation given
+    a rotation matrix and translation vector.
+    
+    Parameters:
+        R : a rotation matrix
+        p: a translation vector 3x1
+    
+    Returns:
+        The trasnformation matrix of the rotation and translation R and p
     """
 
     return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
 
 def TransCamCen(z_rot, p):
     """
-    param zrot - the rotation of the aruco tag about the z axis
-    param p - the translation of the aruco tag from the camera
-    returns - the transformation matrix from the camera to the centre of 
-    an aruco tag
+    Calculates the transformation from the camera to the center of the aruco tag.
+    
+    Parameters:
+        zrot: the rotation of the aruco tag about the z axis
+        p: the translation of the aruco tag from the camera
+    
+    Returns: 
+        The transformation matrix from the camera to the centre of 
+        an aruco tag
 
     """
     I = np.eye(3)
@@ -106,11 +121,16 @@ def TransCamCen(z_rot, p):
 # transformation from s frame to centre of cube
 def TransSCen(Tcam_cen,Ts_cam):
     """
-    param Tcam_cen - transformation matrix from camera to centre of block
-    param Ts_cam - transformation matrix from the s frame at the base of 
-    the robot to the camera
-    returns - the framformation matrix from the s frame on the robot to the
-    centre of the tag
+    Helper function to calculate the transformation between the center of a
+    cube from the s-frame (base of the robot arm)
+    
+    Parameters:
+        Tcam_cen: transformation matrix from camera to centre of block
+        Ts_cam: transformation matrix from the s frame at the base of 
+                the robot to the camera
+    Returns:
+        Ts_cen: The framformation matrix from the s frame on the robot to the
+                centre of the tag
     """
     Ts_cen = np.dot(Ts_cam, Tcam_cen)
     return Ts_cen
@@ -118,9 +138,11 @@ def TransSCen(Tcam_cen,Ts_cam):
 def euler_from_quaternion(x, y, z, w):
         """
         Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
+        
+        Output:
+            roll_x: rotation around x in radians (counterclockwise)
+            pitch_y: rotation around y in radians (counterclockwise)
+            yaw_z: rotation around z in radians (counterclockwise)
         """
         t0 = +2.0 * (w * x + y * z)
         t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -137,20 +159,25 @@ def euler_from_quaternion(x, y, z, w):
      
         return roll_x, pitch_y, yaw_z # in radians
 
-def invk2(x,y,z):
+def invk(x,y,z):
     """
-    finds the inverse kinematics angles for the robot to get to x,y,z 
-    zero position at joint 1 with x and y pos as written on robot
+    Calculates the inverse kinematics for a given (x, y, z) coordinate position.
+    Coordinates are relative to the base of robot arm.
+    
+    Parameters:
+        x: desired x-position in millimeters
+        y: desired y-position in millimeters
+        z: desired z-position in millimeters
+    Returns:
+        msg: returns the ROS std_msg JointState with the desired 
+             joint angle parameters  
     """
-    
-    
-    
+   
     #robot arm lengths
     L1 = 95 
     L2 = 117.5 
     L3 = 95 
     L4 = 70
-
 
     phi = -np.array((0,1,2,3,4))*np.pi/8 #angle the gripper makes from horizontal
     solutions = list()
@@ -171,7 +198,7 @@ def invk2(x,y,z):
                 v3_1 = -np.arccos(c2)  #elbow-up position
                 v3_2 = +np.arccos(c2)  #elbow-down position
             except:
-                print(f"error in invk2 {c2}")
+                print(f"error in invk {c2}")
                 
             alpha = np.arctan2(pwy,pwx) #angle from zero position to joint 4
             beta = np.arccos((pwx**2+pwy**2+L2**2-L3**2)/(2 * L2 *np.sqrt(pwx**2 + pwy**2 )))
@@ -244,6 +271,10 @@ def invk2(x,y,z):
     return msg
 
 def init_global_vars():
+    """
+    Helper function which initialises all global variables used for 
+    robot arm.
+    """
 
     # setup gripper / gpio
     global rpi
@@ -297,7 +328,8 @@ def init_global_vars():
 
 def init_sub_pub():
     """
-    Initialises subscribers and publishers
+        Helper function which initlialises all ROS publishers and subscribers 
+        used for the project.
     """
     # Initialise node with any node name
     rospy.init_node('metr4202_w7_prac')
@@ -335,9 +367,9 @@ def init_sub_pub():
 
     # subscriber for gripper
     # NOTE: gripper values 
-    #750 is the closed position
-    #1150 is the grip box position
-    #2000 is the open position
+    #   750 is the closed position
+    #   1150 is the grip box position
+    #   2000 is the open position
     grip_sub = rospy.Subscriber(
         'gripper_value',    # topic name
         Float32,            # msg type
@@ -367,8 +399,8 @@ def init_sub_pub():
 
 def check_arm_in_place():
     """
-    Checks if the arm has arrived at desired position
-    Only returns when arm is in position
+        Helper function which waits until the desired_joint_angles and 
+        current_joint_angles are in within a set error threshold (err_threshold).
     """
     global desired_joint_angles
     global current_joint_angles
@@ -378,6 +410,7 @@ def check_arm_in_place():
 
     initial_time = time.time()
     arm_in_place = False
+    err_threshold = 0.2
     
     while(not arm_in_place):
         current_time = time.time()
@@ -389,7 +422,7 @@ def check_arm_in_place():
             break
             
         # add delay incase new information needs to be proccessed
-        rospy.sleep(0.1)
+        rospy.sleep(0.5)
         #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
         diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
@@ -399,13 +432,20 @@ def check_arm_in_place():
         
         #print("Arm not in place")
         #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
-        if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
+        if diff_j1 < err_threshold and diff_j2 < err_threshold and 
+            diff_j3 < err_threshold and diff_j4 < err_threshold:
             arm_in_place = True
     print("Arm set in place")  
     
 def move_to_pos(x, y, z):
     """
-    Moves to a position
+    Helper function which publishes a desired (x, y, z) position to the
+    ROS topic 'desired_pose'.
+    
+    Parameters:
+        x: x-position relative to arm
+        y: y-position relative to arm
+        z: z-position relative to arm
     """
     global desired_pose_pub
 
@@ -418,6 +458,15 @@ def move_to_pos(x, y, z):
     check_arm_in_place()        
 
 def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
+    """
+    Helper function to move robot arm to specific set of joint angles.
+    
+    Parameters:
+        theta_1: joint 1 angle
+        theta_2: joint 2 angle
+        theta_3: joint 3 angle
+        theta_4: joint 4 angle 
+    """
     # msg_2: colour check position with rig
     msg = JointState(
         # Set header with current time
@@ -432,28 +481,13 @@ def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
     check_arm_in_place()
     
 def move_to_colour_check_pos():
+    """
+    Helper function to move robot arm to a position used to check colour
+    of cube.
+    """
     global pub
     global desired_joint_angles
 
-    """
-    # msg_1: colour check position without rig
-    msg_1 = JointState(
-        # Set header with current time
-        header=Header(stamp=rospy.Time.now()),
-        # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
-        name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
-        position=[0, 0.7, 0.69, 1.39]
-    )
-    
-    # msg_2: colour check position with rig
-    msg_2 = JointState(
-        # Set header with current time
-        header=Header(stamp=rospy.Time.now()),
-        # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
-        name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
-        position=[0, 0.62, 0.77, 1.5]
-    )
-    """
     set_joint_angles(0, 0.7, 0.69, 1.39)
     
 def pickup_cube(cube: Cube):
@@ -469,8 +503,8 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0])*5 
-    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0])*5 
+    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
     msg.position.z = cube_last_pos[2] + 75
 
     desired_pose_pub.publish(msg)
@@ -479,9 +513,9 @@ def pickup_cube(cube: Cube):
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0]) *5
-    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
-    msg.position.z = cube_last_pos[2] + 30
+    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0]) *5
+    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.z = cube_last_pos[2] #+ 30
 
     desired_pose_pub.publish(msg)
     check_arm_in_place()
@@ -493,8 +527,8 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0])*5 
-    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0])*5 
+    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
     msg.position.z = cube_last_pos[2] + 150
     
     desired_pose_pub.publish(msg)
@@ -531,12 +565,14 @@ def colour_check():
 def invk_cb(pose: Pose):
     global pub
     global desired_joint_angles
+    global desired_pos
     global state
     global states
     global cubes
     
     try:
-        desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
+        desired_jstate = invk(pose.position.x, pose.position.y, pose.position.z)
+        desired_pos = [pose.position.x, pose.position.y, pose.position.z]
         desired_joint_angles = desired_jstate.position
         pub.publish(desired_jstate)
     except:
@@ -575,7 +611,7 @@ def acuro_cb(data: FiducialTransformArray):
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
-            # print(f"this is p: {p}")
+            print(f"Cube corner position: {p}")
             
             # transformation from cam to cube center
             T_cam_cubeCenter = TransCamCen(z_rot, p)
@@ -591,58 +627,14 @@ def acuro_cb(data: FiducialTransformArray):
             #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
             
             T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
+            np.set_printoptions(suppress=True)   
+            print(f"T_s_cube_center: \n{T_s_cube_center}")
             p = T_s_cube_center[0:3, 3]
+            print(f"Cube center position: {p}")
             
             # update cube position relative to arm base
-            cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
-
-            """ #
-            if tag_id != ARM_ID and initialised:
-                # check if cube in cubelist already
-                if tag_id not in cubes.keys():
-                    newCube = Cube(tag_id)
-                    cubes[tag_id] = newCube
-
-                # convert cube position data 
-                #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
-                
-                T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
-                
-                p = T_s_cube_center[0:3, 3]
-                
-                #V = np.dot(T_base_cam, np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
+            cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3], z_rot)
                         
-                #print("V", V)
-                # update cube position relative to arm base
-                cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
-
-            elif tag_id == ARM_ID and not initialised:
-                T_base_aruco = np.array([
-                    [ 1, 0, 0, -45],
-                    [ 0, 1, 0, -42],
-                    [ 0, 0, 1,  0],
-                    [ 0, 0, 0,  1],
-                ])
-                
-              
-                print("T base aruco is initialized")
-
-                T_cam_aruco = np.array([
-                    [1,  0,  0, p[0]],
-                    [0, -1,  0, p[1]],
-                    [0,  0, -1, p[2]],
-                    [0,  0,  0,    1],
-                ])
-                
-                T_aruco_cam = np.linalg.inv(T_cam_aruco)
-                
-                T_base_cam = T_base_aruco @ T_aruco_cam
-                T_base_cam[0,3] = T_base_cam[0,3] + 30
-                T_base_cam[1,3] = T_base_cam[1,3]
-                initialised = True
-                """
-                        
-    pass
 
 def joint_state_cb(data:JointState):
     """
@@ -671,7 +663,7 @@ def colour_check_cb(data:ColorRGBA):
         # print(f"Updated colour data to: {current_colour}")
 
 ########
-# MAIN
+# MAIN #
 ########
 def main():
     # initialise nodes and gripper
@@ -687,7 +679,7 @@ def main():
     global initialised              # variable check to see if robot has initialised
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points
-    
+    global desired_pos              # desried x,y,z position of arm
     # add initial delay so everything can load
     rospy.sleep(2)
     
@@ -747,13 +739,16 @@ def main():
             for cube_id, cube in list(cubes.items()):
 
                 distance = np.linalg.norm(cube.get_position())
-                print(f"Cube {cube_id} distance: {distance}") 
+                cube_rot = abs(np.rad2deg(cube.z_his[-1]))%90
+                arm_rot = abs(np.rad2deg(np.arctan2(desired_pos[0], desired_pos[1])))%90
+                rot_comp = abs(cube_rot - arm_rot)
+                
+                print(f"Cube {cube_id}: distance- {distance} cube_rot- {cube_rot} arm_rot- {arm_rot} rot_comp- {rot_comp}") 
                 if distance < best_distance:
                     closest_cube = cube
                     best_distance = distance
 
-            pickup_cube(closest_cube)
-            
+            pickup_cube(closest_cube)            
             
             # move arm holding block out of the way
             move_to_pos(100,1,200)
