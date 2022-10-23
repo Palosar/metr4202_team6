@@ -25,26 +25,44 @@ import pigpio
 import math
 import time
 
+
 class Cube:
+    """
+    Object that holds useful cube information:
+    id - cube od
+    history - where the cube has been
+    ime_his - when the cube has been seen
+    """
     def __init__(self, id):
         self.id = id
         self.history = []
         self.time_his = []
+        self.z_his = []
         self.last_detected_seq = -1
 
-    def update_pos(self, x, y, z):
+    def get_position(self):
+        return(self.history[0])
+
+    def update_pos(self, x, y, z, z_rot):
         if len(self.history) == 5:
             self.history.pop(0)
+            self.z_his.pop(0)
             self.time_his.pop(0)
             
         self.history.append([x, y, z])
+        self.z_his.append(z_rot)
         self.time_his.append(time.time())
+        # print(f"Cube ID: {self.id}, Time: {time.time()}, New Pos: {x}, {y}, {z}")
 
 ######################################
 # HELPER FUNCTIONS
 ######################################
 
 def zRotMatrix(theta):
+    """
+    params: theta- angle rotate about z axis
+    returns: transformation matrix of rotation
+    """
     R = np.array([[np.cos(theta), -np.sin(theta), 0],
                   [np.sin(theta), np.cos(theta), 0],
                   [0,0,1]])
@@ -52,9 +70,22 @@ def zRotMatrix(theta):
 
 #makes a transformation matrix
 def RpToTrans(R, p):
+    """
+    params - R : a rotation matrix
+    params - p: a translation vector 3x1
+    returns - the trasnformation matrix of the rotation and translation R and p
+    """
+
     return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
 
 def TransCamCen(z_rot, p):
+    """
+    param zrot - the rotation of the aruco tag about the z axis
+    param p - the translation of the aruco tag from the camera
+    returns - the transformation matrix from the camera to the centre of 
+    an aruco tag
+
+    """
     I = np.eye(3)
 
     # Tag side length
@@ -74,6 +105,13 @@ def TransCamCen(z_rot, p):
 
 # transformation from s frame to centre of cube
 def TransSCen(Tcam_cen,Ts_cam):
+    """
+    param Tcam_cen - transformation matrix from camera to centre of block
+    param Ts_cam - transformation matrix from the s frame at the base of 
+    the robot to the camera
+    returns - the framformation matrix from the s frame on the robot to the
+    centre of the tag
+    """
     Ts_cen = np.dot(Ts_cam, Tcam_cen)
     return Ts_cen
 
@@ -199,7 +237,7 @@ def invk2(x,y,z):
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
         position=[best_solution[0], best_solution[1], best_solution[2], best_solution[3]],
-        #velocity=[0.4, 0.4, 0.4, 0.4],
+        velocity=[2, 2, 2, 2],
         #effort=[20, 20, 20, 20]
     )
     
@@ -222,20 +260,20 @@ def init_global_vars():
     global initialised  # variable check to see if robot has initialised
 
     states = {
-        "HOMESTATE" : 0,
-        "PREDICTION" : 1,
-        "PICKUP" : 2,
-        "COLOUR_CHECK" : 3,
-        "DROP_OFF" : 4
+        "HOMESTATE" : 0, #for initalising the robot
+        "PREDICTION" : 1, # for looking for blocks
+        "PICKUP" : 2, # to move to pickup and grip blocks
+        "COLOUR_CHECK" : 3, #to move to a positoin to read color then read color
+        "DROP_OFF" : 4 # move to position according to color of block and drop
     }
     state = states["PREDICTION"]
     initialised = False
 
-    # colour related variables
+    # colour related variables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
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points    
     
-    drop_off_points = {
+    drop_off_points = { #positions of the relevant drop off areas according to color
         "red"     : [150, 40, 150],    
         "green"   : [50, 150, 75],   
         "blue"    : [-50, 150, 75],    
@@ -248,6 +286,7 @@ def init_global_vars():
         "b": 0
     }
 
+    #transformation matrix from camera to robot - found manually 
     global T_base_cam
     T_base_cam = np.array([
                     [1,  0,  0, 0],
@@ -329,6 +368,7 @@ def init_sub_pub():
 def check_arm_in_place():
     """
     Checks if the arm has arrived at desired position
+    Only returns when arm is in position
     """
     global desired_joint_angles
     global current_joint_angles
@@ -531,14 +571,14 @@ def acuro_cb(data: FiducialTransformArray):
             tag_pos = data_transform.transform.translation
             tag_rot = data_transform.transform.rotation
             
-            x, y, z = euler_from_quaternion(tag_rot.x, tag_rot.y, tag_rot.z, tag_rot.w)
+            x, y, z_rot = euler_from_quaternion(tag_rot.x, tag_rot.y, tag_rot.z, tag_rot.w)
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
             # print(f"this is p: {p}")
             
             # transformation from cam to cube center
-            T_cam_cubeCenter = TransCamCen(z, p)
+            T_cam_cubeCenter = TransCamCen(z_rot, p)
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
             #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
             
@@ -605,6 +645,10 @@ def acuro_cb(data: FiducialTransformArray):
     pass
 
 def joint_state_cb(data:JointState):
+    """
+    params data - the data of the currnet joint states
+    updates the global current-joint_angles varible
+    """
     global current_joint_angles
     if len(data.position) == 4:
         # data is returned as [j4, j3, j2, j1] but desired posed saved as [j1, j2, j3, j4]
@@ -612,6 +656,10 @@ def joint_state_cb(data:JointState):
         current_joint_angles.reverse()
 
 def colour_check_cb(data:ColorRGBA):
+    """
+    params data - the data of the currnet color read
+    updates the global current_colour varible
+    """
     global current_colour
     global states
     global state
@@ -621,8 +669,6 @@ def colour_check_cb(data:ColorRGBA):
         current_colour["g"]=data.g
         current_colour["b"]=data.b
         # print(f"Updated colour data to: {current_colour}")
-
-
 
 ########
 # MAIN
@@ -665,7 +711,6 @@ def main():
             
             # clear detected cubes
             cubes.clear()
-            state = states["PREDICTION"]
         elif state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
@@ -685,21 +730,29 @@ def main():
                         oldest = cube.history[4]
 
                         dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
-                        #print(f"distance prediction value: {dist}")
+                        print(f"distance prediction value: {dist}")
                         if dist < 5:
                             stopped = True
 
 
                 if stopped:
                     # change to PICKUP state
-                    print("4")
                     state = states["PICKUP"]
             
 
         elif state == states.get("PICKUP"):
             # CURRENT IMPLEMENTATION: pickup the first box
-            id, cube = list(cubes.items())[0]
-            pickup_cube(cube)
+            best_distance = 10000
+            
+            for cube_id, cube in list(cubes.items()):
+
+                distance = np.linalg.norm(cube.get_position())
+                print(f"Cube {cube_id} distance: {distance}") 
+                if distance < best_distance:
+                    closest_cube = cube
+                    best_distance = distance
+
+            pickup_cube(closest_cube)
             
             
             # move arm holding block out of the way

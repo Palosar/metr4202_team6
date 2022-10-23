@@ -63,9 +63,17 @@ class CameraViewer:
         avg_bgr = np.array(total_bgr) // count
         return avg_bgr
 
+def colour_check_cb(data:ColorRGBA):
+    global colour
+    colour["r"]=data.r
+    colour["g"]=data.g
+    colour["b"]=data.b
+
+
 if __name__ == '__main__':  
     rospy.init_node('image_node', anonymous=True)
     viewer = CameraViewer('31703851')
+    
     try:
         while not rospy.is_shutdown():
             if img is not None:

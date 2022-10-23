@@ -54,7 +54,7 @@ CMAKE_BINARY_DIR = /home/team6/catkin_ws/build/dynamixel_interface
 include CMakeFiles/_dynamixel_interface_generate_messages_check_deps_ServoDiags.dir/progress.make
 
 CMakeFiles/_dynamixel_interface_generate_messages_check_deps_ServoDiags:
-	catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py dynamixel_interface /home/team6/catkin_ws/src/dynamixel_interface/msg/ServoDiags.msg std_msgs/Header:dynamixel_interface/ServoDiag
+	catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/genmsg/cmake/../../../lib/genmsg/genmsg_check_deps.py dynamixel_interface /home/team6/catkin_ws/src/dynamixel_interface/msg/ServoDiags.msg dynamixel_interface/ServoDiag:std_msgs/Header
 
 _dynamixel_interface_generate_messages_check_deps_ServoDiags: CMakeFiles/_dynamixel_interface_generate_messages_check_deps_ServoDiags
 _dynamixel_interface_generate_messages_check_deps_ServoDiags: CMakeFiles/_dynamixel_interface_generate_messages_check_deps_ServoDiags.dir/build.make

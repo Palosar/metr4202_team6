@@ -67,8 +67,8 @@ CMakeFiles/dynamixel_interface_generate_messages_cpp: /home/team6/catkin_ws/deve
 
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /home/team6/catkin_ws/src/dynamixel_interface/msg/DataPorts.msg
-/home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /home/team6/catkin_ws/src/dynamixel_interface/msg/DataPort.msg
+/home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/DataPorts.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/team6/catkin_ws/build/dynamixel_interface/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Generating C++ code from dynamixel_interface/DataPorts.msg"
 	cd /home/team6/catkin_ws/src/dynamixel_interface && /home/team6/catkin_ws/build/dynamixel_interface/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/team6/catkin_ws/src/dynamixel_interface/msg/DataPorts.msg -Idynamixel_interface:/home/team6/catkin_ws/src/dynamixel_interface/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Isensor_msgs:/opt/ros/noetic/share/sensor_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p dynamixel_interface -o /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface -e /opt/ros/noetic/share/gencpp/cmake/..
@@ -81,8 +81,8 @@ CMakeFiles/dynamixel_interface_generate_messages_cpp: /home/team6/catkin_ws/deve
 
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /home/team6/catkin_ws/src/dynamixel_interface/msg/ServoDiags.msg
-/home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /home/team6/catkin_ws/src/dynamixel_interface/msg/ServoDiag.msg
+/home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface/ServoDiags.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/team6/catkin_ws/build/dynamixel_interface/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating C++ code from dynamixel_interface/ServoDiags.msg"
 	cd /home/team6/catkin_ws/src/dynamixel_interface && /home/team6/catkin_ws/build/dynamixel_interface/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/team6/catkin_ws/src/dynamixel_interface/msg/ServoDiags.msg -Idynamixel_interface:/home/team6/catkin_ws/src/dynamixel_interface/msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Isensor_msgs:/opt/ros/noetic/share/sensor_msgs/cmake/../msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -p dynamixel_interface -o /home/team6/catkin_ws/devel/.private/dynamixel_interface/include/dynamixel_interface -e /opt/ros/noetic/share/gencpp/cmake/..
