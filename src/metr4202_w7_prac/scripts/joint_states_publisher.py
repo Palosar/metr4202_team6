@@ -503,8 +503,8 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ x_cal
-    msg.position.y = cube_last_pos[1] #+ y_cal
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
     msg.position.z = cube_last_pos[2] + 75
 
     desired_pose_pub.publish(msg)
@@ -513,8 +513,8 @@ def pickup_cube(cube: Cube):
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ x_cal
-    msg.position.y = cube_last_pos[1] #+ y_cal
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
     msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
@@ -527,8 +527,8 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ x_cal
-    msg.position.y = cube_last_pos[1] #+ y_cal
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
     msg.position.z = cube_last_pos[2] + 150
     
     desired_pose_pub.publish(msg)
