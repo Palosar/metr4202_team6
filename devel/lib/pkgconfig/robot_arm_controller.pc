@@ -1,0 +1,1 @@
+/home/team6/catkin_ws/devel/.private/robot_arm_controller/lib/pkgconfig/robot_arm_controller.pc
