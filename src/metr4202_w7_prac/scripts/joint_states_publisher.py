@@ -636,7 +636,7 @@ def acuro_cb(data: FiducialTransformArray):
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
-            print(f"Cube corner position: {p}")
+            # print(f"Cube corner position: {p}")
             
             # transformation from cam to cube center
             T_cam_cubeCenter = cam_cen_trans(z_rot, p)
@@ -653,9 +653,9 @@ def acuro_cb(data: FiducialTransformArray):
             
             T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
             np.set_printoptions(suppress=True)   
-            print(f"T_s_cube_center: \n{T_s_cube_center}")
+            # print(f"T_s_cube_center: \n{T_s_cube_center}")
             p = T_s_cube_center[0:3, 3]
-            print(f"Cube center position: {p}")
+            # print(f"Cube center position: {p}")
             
             # update cube position relative to arm base
             cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3], z_rot)
@@ -667,7 +667,7 @@ def joint_state_cb(data:JointState):
     of current joint angles.
 
     Paramaters:
-        data: the data of the currnet joint states
+        data: the data of the current joint states
     """
     global current_joint_angles
     if len(data.position) == 4:
