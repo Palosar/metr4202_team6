@@ -432,8 +432,8 @@ def check_arm_in_place():
         
         #print("Arm not in place")
         #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
-        if diff_j1 < err_threshold and diff_j2 < err_threshold and 
-            diff_j3 < err_threshold and diff_j4 < err_threshold:
+        if (diff_j1 < err_threshold and diff_j2 < err_threshold and 
+                diff_j3 < err_threshold and diff_j4 < err_threshold):
             arm_in_place = True
     print("Arm set in place")  
     
