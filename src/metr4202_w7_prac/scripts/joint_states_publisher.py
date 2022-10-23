@@ -104,7 +104,9 @@ def invk2(x,y,z):
     finds the inverse kinematics angles for the robot to get to x,y,z 
     zero position at joint 1 with x and y pos as written on robot
     """
-
+    
+    
+    
     #robot arm lengths
     L1 = 95 
     L2 = 117.5 
@@ -116,7 +118,7 @@ def invk2(x,y,z):
     solutions = list()
 
     theta1 = np.arctan2(y,x)+np.pi/2
-
+    
 
     for angle in phi: #iterates over the gripper angles
         pwx = np.sqrt(x**2+y**2) - L4*np.cos(angle) #distance of of joint 4 on x-y plane from zero position
@@ -170,21 +172,22 @@ def invk2(x,y,z):
     #I think a better definition would be smallest (joints_now - solution) so robots moves the least
     best_solution = solutions[0]
     for solution in solutions:
+        #print(f"phi is = {np.abs(np.pi/2-solution[1]-solution[2]-solution[3])}")
 
-        if (solution[0] > np.pi): # if the theta1 is too big we can rotate pi rad and flip the angles
+        if (solution[0] > 2.6): # if the theta1 is too big we can rotate pi rad and flip the angles
             solution[0] = solution[0] - np.pi
             solution[1] = -solution[1]
             solution[2] = -solution[2]
             solution[3] = -solution[3]
 
-        if (solution[0] < -np.pi): #same as above for large negative theta1
+        if (solution[0] < -2.6): #same as above for large negative theta1
             solution[0] = solution[0] + np.pi
             solution[1] = -solution[1]
             solution[2] = -solution[2]
             solution[3] = -solution[3]
 
         if (np.abs(np.pi/2-solution[1]-solution[2]-solution[3]) \
-        > (np.abs(np.pi/2-best_solution[1]-best_solution[2]-best_solution[3]))):
+        < (np.abs(np.pi/2-best_solution[1]-best_solution[2]-best_solution[3]))):
             best_solution = solution
             print(f'Inverse Kinematics Joint Angles: {solution}')
             #print('Phi', np.abs(np.pi/2-solution[1]-solution[2]-solution[3]))
@@ -200,7 +203,7 @@ def invk2(x,y,z):
         #effort=[20, 20, 20, 20]
     )
     
-    return(msg)
+    return msg
 
 def init_global_vars():
 
@@ -234,8 +237,8 @@ def init_global_vars():
     
     drop_off_points = {
         "red"     : [150, 40, 150],    
-        "green"   : [50, 200, 100],   
-        "blue"    : [-50, 200, 100],    
+        "green"   : [50, 150, 75],   
+        "blue"    : [-50, 150, 75],    
         "yellow"  : [-150, 40, 150],
     }
         
@@ -284,7 +287,7 @@ def init_sub_pub():
         queue_size=10
     )
 
-    # subscriber for desired pose
+    # subscriber for desired pose=
     sub = rospy.Subscriber(
         'desired_pose',     # Topic name
         Pose,               # Message type
@@ -331,6 +334,7 @@ def check_arm_in_place():
     global current_joint_angles
     global state
     global states
+    global cubes
 
     initial_time = time.time()
     arm_in_place = False
@@ -339,6 +343,7 @@ def check_arm_in_place():
         current_time = time.time()
         
         if current_time - initial_time > 3:
+            cubes.clear()
             state = states["PREDICTION"]
             print("arm_in_place reset to prediction")
             break
@@ -371,18 +376,33 @@ def move_to_pos(x, y, z):
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()        
+
+def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
+    # msg_2: colour check position with rig
+    msg = JointState(
+        # Set header with current time
+        header=Header(stamp=rospy.Time.now()),
+        # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
+        name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
+        position=[theta_1, theta_2, theta_3, theta_4]
+    )
+    
+    desired_joint_angles = msg.position
+    pub.publish(msg)
+    check_arm_in_place()
     
 def move_to_colour_check_pos():
     global pub
     global desired_joint_angles
 
+    """
     # msg_1: colour check position without rig
     msg_1 = JointState(
         # Set header with current time
         header=Header(stamp=rospy.Time.now()),
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
-        position=[0, 0.47, 0.77, 1.28]
+        position=[0, 0.7, 0.69, 1.39]
     )
     
     # msg_2: colour check position with rig
@@ -393,10 +413,8 @@ def move_to_colour_check_pos():
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
         position=[0, 0.62, 0.77, 1.5]
     )
-    
-    desired_joint_angles = msg_1.position
-    pub.publish(msg_1)
-    check_arm_in_place()
+    """
+    set_joint_angles(0, 0.7, 0.69, 1.39)
     
 def pickup_cube(cube: Cube):
     """
@@ -411,17 +429,18 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] 
-    msg.position.y = cube_last_pos[1] 
+    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0])*5 
+    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
     msg.position.z = cube_last_pos[2] + 75
 
     desired_pose_pub.publish(msg)
-    rospy.sleep(2)
+    check_arm_in_place()
+    rospy.sleep(0.5)
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] 
-    msg.position.y = cube_last_pos[1] 
+    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0]) *5
+    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
     msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
@@ -431,15 +450,25 @@ def pickup_cube(cube: Cube):
     gripper_pub.publish(Float32(1150))
     rospy.sleep(1)
     print("closed gripper")
+    
+    # send desired intermediate pose above cube for traj. control
+    msg = Pose()
+    msg.position.x = cube_last_pos[0] + np.sign(cube_last_pos[0])*5 
+    msg.position.y = cube_last_pos[1] + np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.z = cube_last_pos[2] + 150
+    
+    desired_pose_pub.publish(msg)
+    check_arm_in_place()
+    rospy.sleep(1)
 
 def colour_check():
     global current_colour
 
     # check colour
-    red = [255, 0, 0]
-    green = [0, 255, 0]
-    blue = [0, 0, 255]
-    yellow = [255, 255, 0]
+    red = [150, 50, 50]
+    green = [50, 150, 50]
+    blue = [50, 50, 50]
+    yellow = [150, 100, 50]
     test_colours = [red, green, blue, yellow]
     
     current_colour_vals = [current_colour["r"], current_colour["g"], current_colour["b"]]
@@ -462,11 +491,17 @@ def colour_check():
 def invk_cb(pose: Pose):
     global pub
     global desired_joint_angles
+    global state
+    global states
+    global cubes
+    
     try:
         desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
         desired_joint_angles = desired_jstate.position
         pub.publish(desired_jstate)
     except:
+        state = states["PREDICTION"]
+        cubes.clear()
         print(f'Failed at desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
             
     #print(f"from invk{desired_joint_angles}")
@@ -585,7 +620,7 @@ def colour_check_cb(data:ColorRGBA):
         current_colour["r"]=data.r
         current_colour["g"]=data.g
         current_colour["b"]=data.b
-        print(f"Updated colour data to: {current_colour}")
+        # print(f"Updated colour data to: {current_colour}")
 
 
 
@@ -608,7 +643,7 @@ def main():
     global drop_off_points          # dictionary of drop off points
     
     # add initial delay so everything can load
-    rospy.sleep(1)
+    rospy.sleep(2)
     
     testSpeed = rospy.Rate(4)
 
@@ -649,56 +684,59 @@ def main():
                         current = cube.history[0]
                         oldest = cube.history[4]
 
-                        #print(f"current: {current}, oldest: {oldest}")
                         dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
-                    
                         #print(f"distance prediction value: {dist}")
                         if dist < 5:
                             stopped = True
 
+
                 if stopped:
                     # change to PICKUP state
+                    print("4")
                     state = states["PICKUP"]
+            
 
         elif state == states.get("PICKUP"):
             # CURRENT IMPLEMENTATION: pickup the first box
             id, cube = list(cubes.items())[0]
             pickup_cube(cube)
             
-            state = states["COLOUR_CHECK"]
-
-        elif state == states.get("COLOUR_CHECK"):
-            # move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
-            move_to_colour_check_pos()
+            
+            # move arm holding block out of the way
+            move_to_pos(100,1,200)
             rospy.sleep(2)
+            state = states["COLOUR_CHECK"]
+        elif state == states.get("COLOUR_CHECK"):
             block_removed = False
             
             # check if cube still on the board
-            remove_id = []
             for cube_id in cubes.keys():
                 current_time = time.time()
                 time_diff = current_time - cubes[cube_id].time_his[0]
-                print(time_diff) 
+                print(f"time last detected {cube_id}: {time_diff}") 
                 if time_diff > 3:
-                     remove_id.append(cube_id)
                      block_removed = True
-
-            # remove cube that is no longer on the board
-            for cube_id in remove_id:
-                cubes.pop(cube_id)
+                     break
             
             if block_removed:
                 # move to colour check position
-                # move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
-                rospy.sleep(2)
+                move_to_colour_check_pos()
+                # update values for 2 seconds
+                rospy.sleep(3)
+                
                 drop_off_colour_index = colour_check()
                 print('drop off color position: ', colour_name[drop_off_colour_index])
                 state = states["DROP_OFF"]
             else:
+                cubes.clear()
                 state = states["PREDICTION"]
                 
         elif state == states.get("DROP_OFF"):
             drop_off_point = drop_off_points[colour_name[drop_off_colour_index]]
+            #if drop_off_colour_index == 1:
+            #set_joint_angles(2.82, 
+            #print("goes into move to pos green")
+            #else:
             move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
             
             rospy.sleep(1)
@@ -707,14 +745,13 @@ def main():
             gripper_pub.publish(Float32(2000))
             
             rospy.sleep(0.5)
+            cubes.clear()
             state = states["PREDICTION"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
         
     rospy.spin()
-
-
 
 
 if __name__ == '__main__':
