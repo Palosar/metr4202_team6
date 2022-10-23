@@ -136,28 +136,28 @@ def TransSCen(Tcam_cen,Ts_cam):
     return Ts_cen
 
 def euler_from_quaternion(x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        
-        Output:
-            roll_x: rotation around x in radians (counterclockwise)
-            pitch_y: rotation around y in radians (counterclockwise)
-            yaw_z: rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-     
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-     
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-     
-        return roll_x, pitch_y, yaw_z # in radians
+    """
+    Convert a quaternion into euler angles (roll, pitch, yaw)
+    
+    Output:
+        roll_x: rotation around x in radians (counterclockwise)
+        pitch_y: rotation around y in radians (counterclockwise)
+        yaw_z: rotation around z in radians (counterclockwise)
+    """
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll_x = math.atan2(t0, t1)
+ 
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch_y = math.asin(t2)
+ 
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw_z = math.atan2(t3, t4)
+ 
+    return roll_x, pitch_y, yaw_z # in radians
 
 def invk(x,y,z):
     """
@@ -272,8 +272,7 @@ def invk(x,y,z):
 
 def init_global_vars():
     """
-    Helper function which initialises all global variables used for 
-    robot arm.
+    Initialises all global variables used for robot arm.
     """
 
     # setup gripper / gpio
@@ -291,16 +290,16 @@ def init_global_vars():
     global initialised  # variable check to see if robot has initialised
 
     states = {
-        "HOMESTATE" : 0, #for initalising the robot
-        "PREDICTION" : 1, # for looking for blocks
-        "PICKUP" : 2, # to move to pickup and grip blocks
-        "COLOUR_CHECK" : 3, #to move to a positoin to read color then read color
-        "DROP_OFF" : 4 # move to position according to color of block and drop
+        "HOMESTATE" : 0,    # for initalising the robot
+        "PREDICTION" : 1,   # for looking for blocks
+        "PICKUP" : 2,       # to move to pickup and grip blocks
+        "COLOUR_CHECK" : 3, # to move to a positoin to read color then read color
+        "DROP_OFF" : 4      # move to position according to color of block and drop
     }
     state = states["PREDICTION"]
     initialised = False
 
-    # colour related variables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
+    # colour related
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points    
     
@@ -328,8 +327,7 @@ def init_global_vars():
 
 def init_sub_pub():
     """
-        Helper function which initlialises all ROS publishers and subscribers 
-        used for the project.
+    Initlialises all ROS publishers and subscribers used for the project.
     """
     # Initialise node with any node name
     rospy.init_node('metr4202_w7_prac')
@@ -399,8 +397,8 @@ def init_sub_pub():
 
 def check_arm_in_place():
     """
-        Helper function which waits until the desired_joint_angles and 
-        current_joint_angles are in within a set error threshold (err_threshold).
+    Helper function which waits until the desired_joint_angles and 
+    current_joint_angles are in within a set error threshold (err_threshold).
     """
     global desired_joint_angles
     global current_joint_angles
@@ -410,7 +408,7 @@ def check_arm_in_place():
 
     initial_time = time.time()
     arm_in_place = False
-    err_threshold = 0.2
+    err_threshold = 0.1
     
     while(not arm_in_place):
         current_time = time.time()
@@ -423,7 +421,10 @@ def check_arm_in_place():
             
         # add delay incase new information needs to be proccessed
         rospy.sleep(0.5)
+        
         #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        
+        # difference between joint angles
         diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
@@ -501,10 +502,14 @@ def pickup_cube(cube: Cube):
 
     cube_last_pos = cube.history[-1]
     
+    # calibration values
+    x_cal = np.sign(cube_last_pos[0])*5
+    y_cal = np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0])*5 
-    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.x = cube_last_pos[0] #+ x_cal
+    msg.position.y = cube_last_pos[1] #+ y_cal
     msg.position.z = cube_last_pos[2] + 75
 
     desired_pose_pub.publish(msg)
@@ -513,9 +518,9 @@ def pickup_cube(cube: Cube):
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0]) *5
-    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
-    msg.position.z = cube_last_pos[2] #+ 30
+    msg.position.x = cube_last_pos[0] #+ x_cal
+    msg.position.y = cube_last_pos[1] #+ y_cal
+    msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
     check_arm_in_place()
@@ -527,8 +532,8 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] #+ np.sign(cube_last_pos[0])*5 
-    msg.position.y = cube_last_pos[1] #+ np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    msg.position.x = cube_last_pos[0] #+ x_cal
+    msg.position.y = cube_last_pos[1] #+ y_cal
     msg.position.z = cube_last_pos[2] + 150
     
     desired_pose_pub.publish(msg)
@@ -536,6 +541,12 @@ def pickup_cube(cube: Cube):
     rospy.sleep(1)
 
 def colour_check():
+    """
+    Checks the current colour being detected against a set of colours to detect.
+    
+    Returns:
+        An index corresponding to a specific coulour.
+    """
     global current_colour
 
     # check colour
@@ -547,10 +558,12 @@ def colour_check():
     
     current_colour_vals = [current_colour["r"], current_colour["g"], current_colour["b"]]
     colour_index = -1
-    # colour diff max
-    min_colour_diff = 999
+    
+    min_colour_diff = 999 # colour diff max
+    
     for i, colour_check in enumerate(test_colours):
         colour_diff = np.sqrt((colour_check[0]-current_colour_vals[0])**2 + (colour_check[1]-current_colour_vals[1])**2 + (colour_check[2]-current_colour_vals[2])**2)
+        
         if colour_diff < min_colour_diff:
             colour_index = i
             min_colour_diff = colour_diff
@@ -561,8 +574,15 @@ def colour_check():
 # CALLBACK FUNCTIONS
 ################################################################
 
-# This one doesn't actually do it though...
+
 def invk_cb(pose: Pose):
+    """
+    ROS subscriber callback which runs a Pose ROS std_msg through inverse
+    kinematics and publishes the desired joint angles.
+    
+    Parameters:
+        pose: ROS std_msg holding (x, y, z) positions 
+    """
     global pub
     global desired_joint_angles
     global desired_pos
@@ -582,8 +602,14 @@ def invk_cb(pose: Pose):
             
     #print(f"from invk{desired_joint_angles}")
 
-# grippper callback checks if grip value is not outside of limits and sets it
 def gripper_cb(gripValue: Float32):
+    """
+    ROS subscriber callback which takes a given value to set PWM to the preset 
+    GPIO pin 18.
+    
+    Parameters:
+        gripValue: Float32 value to set PWM
+    """
     global rpi
     # check limits so servo doesnt break
     if (gripValue.data < 1000 or gripValue.data > 2000):
