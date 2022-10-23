@@ -2,5 +2,5 @@
 	<node name="dynamixel_interface_controller_node" pkg="dynamixel_interface" type="dynamixel_interface_controller_node" output="screen">
 		<rosparam command="load" file="$(find dynamixel_interface)/config/controller_config.yaml" />
 	</node>
-    <node pkg="metr4202_w7_prac" name="joint_and_gripper_node" type="joint_states_publisher.py" output="screen"/>
+    <node pkg="metr4202_w7_prac" name="robot_controller_node" type="robot_controller.py" output="screen"/>
 </launch>

@@ -25,98 +25,165 @@ import pigpio
 import math
 import time
 
+
 class Cube:
+    """
+    Object that holds useful cube information:
+    id - cube od
+    history - where the cube has been
+    ime_his - when the cube has been seen
+    """
     def __init__(self, id):
         self.id = id
         self.history = []
         self.time_his = []
+        self.z_his = []
         self.last_detected_seq = -1
 
-    def update_pos(self, x, y, z):
+    def get_position(self):
+        return(self.history[0])
+
+    def update_pos(self, x, y, z, z_rot):
         if len(self.history) == 5:
             self.history.pop(0)
+            self.z_his.pop(0)
             self.time_his.pop(0)
             
         self.history.append([x, y, z])
+        self.z_his.append(z_rot)
         self.time_his.append(time.time())
+        # print(f"Cube ID: {self.id}, Time: {time.time()}, New Pos: {x}, {y}, {z}")
 
 ######################################
-# HELPER FUNCTIONS
+#         HELPER FUNCTIONS           #
 ######################################
 
-def zRotMatrix(theta):
+def z_rot_matrix(theta):
+    """
+    Calculates a rotation matrix in the z-axis given a theta angle.
+    
+    Parameters:
+        theta: angle rotate about z axis
+    Returns:
+        Transformation matrix of rotation
+    """
     R = np.array([[np.cos(theta), -np.sin(theta), 0],
                   [np.sin(theta), np.cos(theta), 0],
                   [0,0,1]])
     return R
 
 #makes a transformation matrix
-def RpToTrans(R, p):
+def rp_to_trans(R, p):
+    """
+    Calculates the transformation matrix of the rotation and translation given
+    a rotation matrix and translation vector.
+    
+    Parameters:
+        R : a rotation matrix
+        p: a translation vector 3x1
+    
+    Returns:
+        The trasnformation matrix of the rotation and translation R and p
+    """
+
     return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
 
-def TransCamCen(z_rot, p):
+def cam_cen_trans(z_rot, p):
+    """
+    Calculates the transformation from the camera to the center of the aruco tag.
+    
+    Parameters:
+        zrot: the rotation of the aruco tag about the z axis
+        p: the translation of the aruco tag from the camera
+    
+    Returns: 
+        The transformation matrix from the camera to the centre of 
+        an aruco tag
+
+    """
     I = np.eye(3)
 
     # Tag side length
     L = 0 #mm
     pcor_cen = np.array([L/2, L/2, 0])
     # transformation from corner of tag to centre
-    Tcor_cen = RpToTrans(I, pcor_cen)
+    Tcor_cen = rp_to_trans(I, pcor_cen)
 
     #theta should be given from aruco
-    Rcam_cor = zRotMatrix(z_rot)
+    Rcam_cor = z_rot_matrix(z_rot)
 
-    Tcam_cor = RpToTrans(Rcam_cor, p)
+    Tcam_cor = rp_to_trans(Rcam_cor, p)
     # Transformation from camera to corner of arucotag
     Tcam_cen = np.dot(Tcam_cor, Tcor_cen)
 
     return Tcam_cen
 
 # transformation from s frame to centre of cube
-def TransSCen(Tcam_cen,Ts_cam):
+def s_cen_trans(Tcam_cen,Ts_cam):
+    """
+    Calculates the transformation between the center of a cube 
+    from the s-frame (base of the robot arm)
+    
+    Parameters:
+        Tcam_cen: transformation matrix from camera to centre of block
+        Ts_cam: transformation matrix from the s frame at the base of 
+                the robot to the camera
+    Returns:
+        Ts_cen: The framformation matrix from the s frame on the robot to the
+                centre of the tag
+    """
     Ts_cen = np.dot(Ts_cam, Tcam_cen)
     return Ts_cen
 
 def euler_from_quaternion(x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-     
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-     
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-     
-        return roll_x, pitch_y, yaw_z # in radians
-
-def invk2(x,y,z):
     """
-    finds the inverse kinematics angles for the robot to get to x,y,z 
-    zero position at joint 1 with x and y pos as written on robot
+    Convert a quaternion into euler angles (roll, pitch, yaw)
+    
+    Output:
+        roll_x: rotation around x in radians (counterclockwise)
+        pitch_y: rotation around y in radians (counterclockwise)
+        yaw_z: rotation around z in radians (counterclockwise)
     """
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll_x = math.atan2(t0, t1)
+ 
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch_y = math.asin(t2)
+ 
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw_z = math.atan2(t3, t4)
+ 
+    return roll_x, pitch_y, yaw_z # in radians
 
+def invk(x,y,z):
+    """
+    Calculates the inverse kinematics for a given (x, y, z) coordinate position.
+    Coordinates are relative to the base of robot arm.
+    
+    Parameters:
+        x: desired x-position in millimeters
+        y: desired y-position in millimeters
+        z: desired z-position in millimeters
+    Returns:
+        msg: returns the ROS std_msg JointState with the desired 
+             joint angle parameters  
+    """
+   
     #robot arm lengths
     L1 = 95 
     L2 = 117.5 
     L3 = 95 
     L4 = 70
 
-
     phi = -np.array((0,1,2,3,4))*np.pi/8 #angle the gripper makes from horizontal
     solutions = list()
 
     theta1 = np.arctan2(y,x)+np.pi/2
-
+    
 
     for angle in phi: #iterates over the gripper angles
         pwx = np.sqrt(x**2+y**2) - L4*np.cos(angle) #distance of of joint 4 on x-y plane from zero position
@@ -131,7 +198,7 @@ def invk2(x,y,z):
                 v3_1 = -np.arccos(c2)  #elbow-up position
                 v3_2 = +np.arccos(c2)  #elbow-down position
             except:
-                print(f"error in invk2 {c2}")
+                print(f"error in invk {c2}")
                 
             alpha = np.arctan2(pwy,pwx) #angle from zero position to joint 4
             beta = np.arccos((pwx**2+pwy**2+L2**2-L3**2)/(2 * L2 *np.sqrt(pwx**2 + pwy**2 )))
@@ -170,24 +237,25 @@ def invk2(x,y,z):
     #I think a better definition would be smallest (joints_now - solution) so robots moves the least
     best_solution = solutions[0]
     for solution in solutions:
+        #print(f"phi is = {np.abs(np.pi/2-solution[1]-solution[2]-solution[3])}")
 
-        if (solution[0] > np.pi): # if the theta1 is too big we can rotate pi rad and flip the angles
+        if (solution[0] > 2.6): # if the theta1 is too big we can rotate pi rad and flip the angles
             solution[0] = solution[0] - np.pi
             solution[1] = -solution[1]
             solution[2] = -solution[2]
             solution[3] = -solution[3]
 
-        if (solution[0] < -np.pi): #same as above for large negative theta1
+        if (solution[0] < -2.6): #same as above for large negative theta1
             solution[0] = solution[0] + np.pi
             solution[1] = -solution[1]
             solution[2] = -solution[2]
             solution[3] = -solution[3]
 
         if (np.abs(np.pi/2-solution[1]-solution[2]-solution[3]) \
-        > (np.abs(np.pi/2-best_solution[1]-best_solution[2]-best_solution[3]))):
+        < (np.abs(np.pi/2-best_solution[1]-best_solution[2]-best_solution[3]))):
             best_solution = solution
-            print(solution)
-            print('Phi', np.abs(np.pi/2-solution[1]-solution[2]-solution[3]))
+            print(f'Inverse Kinematics Joint Angles: {solution}')
+            #print('Phi', np.abs(np.pi/2-solution[1]-solution[2]-solution[3]))
 
     # Create message of type JointState
     msg = JointState(
@@ -196,13 +264,16 @@ def invk2(x,y,z):
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
         position=[best_solution[0], best_solution[1], best_solution[2], best_solution[3]],
-        #velocity=[0.4, 0.4, 0.4, 0.4],
+        velocity=[2, 2, 2, 2],
         #effort=[20, 20, 20, 20]
     )
     
-    return(msg)
+    return msg
 
 def init_global_vars():
+    """
+    Initialises all global variables used for robot arm.
+    """
 
     # setup gripper / gpio
     global rpi
@@ -216,26 +287,23 @@ def init_global_vars():
     # variables which manage state machine of code
     global states       # dictionary of states
     global state        # current state of arm
-    global initialised  # variable check to see if robot has initialised
 
     states = {
-        "HOMESTATE" : 0,
-        "PREDICTION" : 1,
-        "PICKUP" : 2,
-        "COLOUR_CHECK" : 3,
-        "DROP_OFF" : 4
+        "PREDICTION" : 0,   # for looking for blocks
+        "PICKUP" : 1,       # to move to pickup and grip blocks
+        "COLOUR_CHECK" : 2, # to move to a positoin to read color then read color
+        "DROP_OFF" : 3      # move to position according to color of block and drop
     }
     state = states["PREDICTION"]
-    initialised = False
 
-    # colour related variables
+    # colour related
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points    
     
-    drop_off_points = {
+    drop_off_points = { #positions of the relevant drop off areas according to color
         "red"     : [150, 40, 150],    
-        "green"   : [50, 200, 150],   
-        "blue"    : [-50, 200, 100],    
+        "green"   : [50, 150, 75],   
+        "blue"    : [-50, 150, 75],    
         "yellow"  : [-150, 40, 150],
     }
         
@@ -245,17 +313,18 @@ def init_global_vars():
         "b": 0
     }
 
+    #transformation matrix from camera to robot - found manually 
     global T_base_cam
     T_base_cam = np.array([
                     [1,  0,  0, 0],
-                    [0, -1,  0, -210],
+                    [0, -1,  0, -175],
                     [0,  0, -1, 455],
                     [0,  0,  0,    1],
                 ])
 
 def init_sub_pub():
     """
-    Initialises subscribers and publishers
+    Initlialises all ROS publishers and subscribers used for the project.
     """
     # Initialise node with any node name
     rospy.init_node('metr4202_w7_prac')
@@ -284,7 +353,7 @@ def init_sub_pub():
         queue_size=10
     )
 
-    # subscriber for desired pose
+    # subscriber for desired pose=
     sub = rospy.Subscriber(
         'desired_pose',     # Topic name
         Pose,               # Message type
@@ -293,9 +362,9 @@ def init_sub_pub():
 
     # subscriber for gripper
     # NOTE: gripper values 
-    #750 is the closed position
-    #1150 is the grip box position
-    #2000 is the open position
+    #   750 is the closed position
+    #   1150 is the grip box position
+    #   2000 is the open position
     grip_sub = rospy.Subscriber(
         'gripper_value',    # topic name
         Float32,            # msg type
@@ -325,27 +394,34 @@ def init_sub_pub():
 
 def check_arm_in_place():
     """
-    Checks if the arm has arrived at desired position
+    Waits until the desired_joint_angles and current_joint_angles are 
+    in within a set error threshold (err_threshold).
     """
     global desired_joint_angles
     global current_joint_angles
     global state
     global states
+    global cubes
 
     initial_time = time.time()
     arm_in_place = False
+    err_threshold = 0.1
     
     while(not arm_in_place):
         current_time = time.time()
         
         if current_time - initial_time > 3:
+            cubes.clear()
             state = states["PREDICTION"]
             print("arm_in_place reset to prediction")
             break
             
         # add delay incase new information needs to be proccessed
-        rospy.sleep(0.1)
+        rospy.sleep(0.5)
+        
         #print(f"desired: {desired_joint_angles} current: {current_joint_angles}")
+        
+        # difference between joint angles
         diff_j1 = np.abs(desired_joint_angles[0] - current_joint_angles[0])
         diff_j2 = np.abs(desired_joint_angles[1] - current_joint_angles[1])
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
@@ -354,13 +430,19 @@ def check_arm_in_place():
         
         #print("Arm not in place")
         #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
-        if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
+        if (diff_j1 < err_threshold and diff_j2 < err_threshold and 
+                diff_j3 < err_threshold and diff_j4 < err_threshold):
             arm_in_place = True
     print("Arm set in place")  
     
 def move_to_pos(x, y, z):
     """
-    Moves to a position
+    Publishes a desired (x, y, z) position to the ROS topic 'desired_pose'.
+    
+    Parameters:
+        x: x-position relative to arm
+        y: y-position relative to arm
+        z: z-position relative to arm
     """
     global desired_pose_pub
 
@@ -371,6 +453,38 @@ def move_to_pos(x, y, z):
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()        
+
+def set_joint_angles(theta_1, theta_2, theta_3, theta_4):
+    """
+    Moves robot arm to specific set of joint angles.
+    
+    Parameters:
+        theta_1: joint 1 angle
+        theta_2: joint 2 angle
+        theta_3: joint 3 angle
+        theta_4: joint 4 angle 
+    """
+    # msg_2: colour check position with rig
+    msg = JointState(
+        # Set header with current time
+        header=Header(stamp=rospy.Time.now()),
+        # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
+        name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
+        position=[theta_1, theta_2, theta_3, theta_4]
+    )
+    
+    desired_joint_angles = msg.position
+    pub.publish(msg)
+    check_arm_in_place()
+    
+def move_to_colour_check_pos():
+    """
+    Moves robot arm to a position used to check colour of cube.
+    """
+    global pub
+    global desired_joint_angles
+
+    set_joint_angles(0, 0.7, 0.69, 1.39)
     
 def pickup_cube(cube: Cube):
     """
@@ -383,19 +497,24 @@ def pickup_cube(cube: Cube):
 
     cube_last_pos = cube.history[-1]
     
+    # calibration values
+    x_cal = np.sign(cube_last_pos[0])*5
+    y_cal = np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 1 +5
-    msg.position.y = cube_last_pos[1] * 1
-    msg.position.z = cube_last_pos[2] + 100
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
+    msg.position.z = cube_last_pos[2] + 75
 
     desired_pose_pub.publish(msg)
-    rospy.sleep(2)
+    check_arm_in_place()
+    rospy.sleep(0.5)
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 0.95 +5
-    msg.position.y = cube_last_pos[1] * 0.95
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
     msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
@@ -405,25 +524,86 @@ def pickup_cube(cube: Cube):
     gripper_pub.publish(Float32(1150))
     rospy.sleep(1)
     print("closed gripper")
+    
+    # send desired intermediate pose above cube for traj. control
+    msg = Pose()
+    msg.position.x = cube_last_pos[0] + x_cal
+    msg.position.y = cube_last_pos[1] + y_cal
+    msg.position.z = cube_last_pos[2] + 150
+    
+    desired_pose_pub.publish(msg)
+    check_arm_in_place()
+    rospy.sleep(1)
+
+def colour_check():
+    """
+    Checks the current colour being detected against a set of colours to detect.
+    
+    Returns:
+        An index corresponding to a specific coulour.
+    """
+    global current_colour
+
+    # check colour
+    red = [150, 50, 50]
+    green = [50, 150, 50]
+    blue = [50, 50, 50]
+    yellow = [150, 100, 50]
+    test_colours = [red, green, blue, yellow]
+    
+    current_colour_vals = [current_colour["r"], current_colour["g"], current_colour["b"]]
+    colour_index = -1
+    
+    min_colour_diff = 999 # colour diff max
+    
+    for i, colour_check in enumerate(test_colours):
+        colour_diff = np.sqrt((colour_check[0]-current_colour_vals[0])**2 + (colour_check[1]-current_colour_vals[1])**2 + (colour_check[2]-current_colour_vals[2])**2)
+        
+        if colour_diff < min_colour_diff:
+            colour_index = i
+            min_colour_diff = colour_diff
+                
+    return colour_index
 
 ################################################################
-# CALLBACK FUNCTIONS
+#                 CALLBACK FUNCTIONS                           #
 ################################################################
 
-# This one doesn't actually do it though...
+
 def invk_cb(pose: Pose):
+    """
+    ROS subscriber callback which runs a Pose ROS std_msg through inverse
+    kinematics and publishes the desired joint angles.
+    
+    Parameters:
+        pose: ROS std_msg holding (x, y, z) positions 
+    """
     global pub
     global desired_joint_angles
-    #rospy.loginfo(f'Got desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')
+    global desired_pos
+    global state
+    global states
+    global cubes
     
-    desired_jstate = invk2(pose.position.x, pose.position.y, pose.position.z)
-    desired_joint_angles = desired_jstate.position
-    
-    #print(f"from invk{desired_joint_angles}")
-    pub.publish(desired_jstate)
+    try:
+        desired_jstate = invk(pose.position.x, pose.position.y, pose.position.z)
+        desired_pos = [pose.position.x, pose.position.y, pose.position.z]
+        desired_joint_angles = desired_jstate.position
+        pub.publish(desired_jstate)
+    except:
+        state = states["PREDICTION"]
+        cubes.clear()
+        print(f'Failed at desired pose\n[\n\tpos:\n{pose.position}\nrot:\n{pose.orientation}\n]')            
+    # print(f"from invk{desired_joint_angles}")
 
-# grippper callback checks if grip value is not outside of limits and sets it
 def gripper_cb(gripValue: Float32):
+    """
+    ROS subscriber callback which takes a given value to set PWM to the preset 
+    GPIO pin 18.
+    
+    Parameters:
+        gripValue: Float32 value to set PWM
+    """
     global rpi
     # check limits so servo doesnt break
     if (gripValue.data < 1000 or gripValue.data > 2000):
@@ -433,10 +613,15 @@ def gripper_cb(gripValue: Float32):
         # print(f"Gripper state value changed to: + {gripValue.data}")
 
 def acuro_cb(data: FiducialTransformArray): 
+    """
+    ROS subscriber callback which takes a FiducialTransformArray holding the transformations
+    and information about detected aruco tags.
+
+    Parameters:
+        data: FiducialTrnasformArray from ROS std_msgs holding detected aruco tag information
+    """
     global cubes
     global T_base_cam
-    # global initialised
-    # ARM_ID = 19
 
     # if there is a cube detected, transforms array > 0
     if len(data.transforms) > 0:
@@ -447,14 +632,14 @@ def acuro_cb(data: FiducialTransformArray):
             tag_pos = data_transform.transform.translation
             tag_rot = data_transform.transform.rotation
             
-            x, y, z = euler_from_quaternion(tag_rot.x, tag_rot.y, tag_rot.z, tag_rot.w)
+            x, y, z_rot = euler_from_quaternion(tag_rot.x, tag_rot.y, tag_rot.z, tag_rot.w)
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
-            # print(f"this is p: {p}")
+            # print(f"Cube corner position: {p}")
             
             # transformation from cam to cube center
-            T_cam_cubeCenter = TransCamCen(z, p)
+            T_cam_cubeCenter = cam_cen_trans(z_rot, p)
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
             #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
             
@@ -467,60 +652,23 @@ def acuro_cb(data: FiducialTransformArray):
             #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
             
             T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
+            np.set_printoptions(suppress=True)   
+            # print(f"T_s_cube_center: \n{T_s_cube_center}")
             p = T_s_cube_center[0:3, 3]
+            # print(f"Cube center position: {p}")
             
             # update cube position relative to arm base
-            cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
-
-            """ #
-            if tag_id != ARM_ID and initialised:
-                # check if cube in cubelist already
-                if tag_id not in cubes.keys():
-                    newCube = Cube(tag_id)
-                    cubes[tag_id] = newCube
-
-                # convert cube position data 
-                #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
-                
-                T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
-                
-                p = T_s_cube_center[0:3, 3]
-                
-                #V = np.dot(T_base_cam, np.array([tagPos.x*1000, tagPos.y*1000, tagPos.z*1000, 1]))
-                        
-                #print("V", V)
-                # update cube position relative to arm base
-                cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
-
-            elif tag_id == ARM_ID and not initialised:
-                T_base_aruco = np.array([
-                    [ 1, 0, 0, -45],
-                    [ 0, 1, 0, -42],
-                    [ 0, 0, 1,  0],
-                    [ 0, 0, 0,  1],
-                ])
-                
-              
-                print("T base aruco is initialized")
-
-                T_cam_aruco = np.array([
-                    [1,  0,  0, p[0]],
-                    [0, -1,  0, p[1]],
-                    [0,  0, -1, p[2]],
-                    [0,  0,  0,    1],
-                ])
-                
-                T_aruco_cam = np.linalg.inv(T_cam_aruco)
-                
-                T_base_cam = T_base_aruco @ T_aruco_cam
-                T_base_cam[0,3] = T_base_cam[0,3] + 30
-                T_base_cam[1,3] = T_base_cam[1,3]
-                initialised = True
-                """
-                        
-    pass
-
+            cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3], z_rot)
+                       
 def joint_state_cb(data:JointState):
+    """
+    ROS subscriber callback which takes a JoinState std_msg which holds the current
+    information on dynamixel motors. Updates global variable holding the information
+    of current joint angles.
+
+    Paramaters:
+        data: the data of the current joint states
+    """
     global current_joint_angles
     if len(data.position) == 4:
         # data is returned as [j4, j3, j2, j1] but desired posed saved as [j1, j2, j3, j4]
@@ -528,18 +676,27 @@ def joint_state_cb(data:JointState):
         current_joint_angles.reverse()
 
 def colour_check_cb(data:ColorRGBA):
+    """
+    ROS subscriber callback which takes a ColorRGBA std_msg holding RGBA levels.
+    Updates the current colour being detected by camera.
+    
+    Paramaters:
+        data: the data of the currnet color read
+    """
     global current_colour
     global states
     global state
 
-    
-    current_colour["r"]=data.r
-    current_colour["g"]=data.g
-    current_colour["b"]=data.b
+    if state == states["COLOUR_CHECK"]:
+        current_colour["r"]=data.r
+        current_colour["g"]=data.g
+        current_colour["b"]=data.b
+        # print(f"Updated colour data to: {current_colour}")
 
-########
-# MAIN
-########
+########################################
+#              MAIN                    #
+########################################
+
 def main():
     # initialise nodes and gripper
     init_sub_pub()
@@ -551,97 +708,97 @@ def main():
     global cubes                    # dictionary of cubes detected in the system
     global state                    # current state of state machine
     global states                   # ditcionary of states
-    global initialised              # variable check to see if robot has initialised
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points
-    
+    global desired_pos              # desried x,y,z position of arm
     # add initial delay so everything can load
-    rospy.sleep(1)
+    rospy.sleep(2)
     
-    testSpeed = rospy.Rate(10)
+    testSpeed = rospy.Rate(4)
 
     colour_name = ["red", "green", "blue", "yellow"]
-    state_names = ["homestate", "prediction", "pickup", "colour check", "drop off"]
+    state_names = ["prediction", "pickup", "colour check", "drop off"]
 
-    reset_pos = [-1, 100, 100]
+    reset_pos = [1, -100, 200]
     init_pos = [150, 150, 200]
     colour_check_pos = [-1, -180, 240]
-    initialised = True
 
     while not rospy.is_shutdown():
-        print(f"---------- Current State: {state}-{state_names[state]}----------")
-        if state == states.get("HOMESTATE"):
-            move_to_pos(init_pos[0], init_pos[1], init_pos[2])
-            # open gripper
-            gripper_pub.publish(Float32(2000))
-            print('out')
-            
-            # clear detected cubes
-            cubes.clear()
-            state = states["PREDICTION"]
-        elif state == states.get("PREDICTION"):
+        print(f"---------- Current State: {state} {state_names[state]}----------")
+        if state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
 
             stopped = False
 
-            if initialised:
-                # move to a position to view cubes
-                move_to_pos(reset_pos[0], reset_pos[1], reset_pos[2])
-                gripper_pub.publish(Float32(2000))
+            # move to a position to view cubes
+            move_to_pos(reset_pos[0], reset_pos[1], reset_pos[2])
+            gripper_pub.publish(Float32(2000))
 
-                # check if there has been a cube added to the system
-                if len(cubes) > 0:
-                    id, cube = list(cubes.items())[0]
-                    if len(cube.history) == 5:
-                        current = cube.history[0]
-                        oldest = cube.history[4]
+            # check if there has been a cube added to the system
+            if len(cubes) > 0:
+                id, cube = list(cubes.items())[0]
+                if len(cube.history) == 5:
+                    current = cube.history[0]
+                    oldest = cube.history[4]
 
-                        #print(f"current: {current}, oldest: {oldest}")
-                        dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
-                    
-                        #print(f"distance prediction value: {dist}")
-                        if dist < 5:
-                            stopped = True
+                    dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
+                    print(f"distance prediction value: {dist}")
+                    if dist < 5:
+                        stopped = True
 
-                if stopped:
-                    # change to PICKUP state
-                    state = states["PICKUP"]
+
+            if stopped:
+                # change to PICKUP state
+                state = states["PICKUP"]
+            
 
         elif state == states.get("PICKUP"):
-            # CURRENT IMPLEMENTATION: pickup the first box
-            id, cube = list(cubes.items())[0]
-            pickup_cube(cube)
+            # CURRENT IMPLEMENTATION: 
+            #   pickup closest box to robot arm
+            best_distance = 10000
             
-            state = states["COLOUR_CHECK"]
+            for cube_id, cube in list(cubes.items()):
 
-        elif state == states.get("COLOUR_CHECK"):
-            move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
+                distance = np.linalg.norm(cube.get_position())
+                cube_rot = abs(np.rad2deg(cube.z_his[-1]))%90
+                arm_rot = abs(np.rad2deg(np.arctan2(desired_pos[0], desired_pos[1])))%90
+                rot_comp = abs(cube_rot - arm_rot)
+                
+                print(f"Cube {cube_id}: distance- {distance} cube_rot- {cube_rot} arm_rot- {arm_rot} rot_comp- {rot_comp}") 
+                if distance < best_distance:
+                    closest_cube = cube
+                    best_distance = distance
+
+            pickup_cube(closest_cube)            
+            
+            # move arm holding block out of the way
+            move_to_pos(100,1,200)
             rospy.sleep(2)
+            state = states["COLOUR_CHECK"]
+        elif state == states.get("COLOUR_CHECK"):
             block_removed = False
             
             # check if cube still on the board
-            remove_id = []
             for cube_id in cubes.keys():
                 current_time = time.time()
                 time_diff = current_time - cubes[cube_id].time_his[0]
-                print(time_diff) 
+                print(f"time last detected {cube_id}: {time_diff}") 
                 if time_diff > 3:
-                     remove_id.append(cube_id)
                      block_removed = True
-
-            # remove cube that is no longer on the board
-            for cube_id in remove_id:
-                cubes.pop(cube_id)
+                     break
             
             if block_removed:
                 # move to colour check position
-                move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
-                rospy.sleep(2)
+                move_to_colour_check_pos()
+                # update values for 2 seconds
+                rospy.sleep(3)
+                
                 drop_off_colour_index = colour_check()
                 print('drop off color position: ', colour_name[drop_off_colour_index])
                 state = states["DROP_OFF"]
             else:
+                cubes.clear()
                 state = states["PREDICTION"]
                 
         elif state == states.get("DROP_OFF"):
@@ -654,37 +811,13 @@ def main():
             gripper_pub.publish(Float32(2000))
             
             rospy.sleep(0.5)
+            cubes.clear()
             state = states["PREDICTION"]
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
         
     rospy.spin()
-
-def colour_check():
-    global current_colour
-<<<<<<< HEAD:src/metr4202_w7_prac/scripts/joint_states_publisher_acuro_tag_base.py
-=======
-
->>>>>>> 659d1708e8616863a9765a8d7f0a5a2ec26474c7:src/metr4202_w7_prac/scripts/joint_states_publisher.py
-    # check colour
-    red = [255, 0, 0]
-    green = [0, 255, 0]
-    blue = [0, 0, 255]
-    yellow = [255, 255, 0]
-    test_colours = [red, green, blue, yellow]
-    
-    current_colour_vals = [current_colour["r"], current_colour["g"], current_colour["b"]]
-    colour_index = -1
-    # colour diff max
-    min_colour_diff = 999
-    for i, colour_check in enumerate(test_colours):
-        colour_diff = np.sqrt((colour_check[0]-current_colour_vals[0])**2 + (colour_check[1]-current_colour_vals[1])**2 + (colour_check[2]-current_colour_vals[2])**2)
-        if colour_diff < min_colour_diff:
-            colour_index = i
-            min_colour_diff = colour_diff
-                
-    return colour_index
 
 
 if __name__ == '__main__':
