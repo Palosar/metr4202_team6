@@ -1,0 +1,22 @@
+/desired_joint_states:
+  type: sensor_msgs/JointState
+  joint_1:
+    to: position[0]
+    min: -3
+    max: 3
+    defualt: 0
+  joint_2:
+    to: position[1]
+    min: -3
+    max: 3
+    defualt: 0
+  joint_3:
+    to: position[2]
+    min: -3
+    max: 3
+    defualt: 0
+  joint_4:
+    to: position[3]
+    min: -3
+    max: 3
+    defualt: 0
