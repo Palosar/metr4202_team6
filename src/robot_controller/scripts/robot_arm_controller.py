@@ -484,7 +484,7 @@ def move_to_colour_check_pos():
     global pub
     global desired_joint_angles
 
-    set_joint_angles(0, 0.7, 0.69, 1.39)
+    set_joint_angles(0, 0.7, 0.44, 1.28)
     
 def pickup_cube(cube: Cube):
     """
@@ -792,7 +792,7 @@ def main():
                 # move to colour check position
                 move_to_colour_check_pos()
                 # update values for 2 seconds
-                rospy.sleep(3)
+                rospy.sleep(2)
                 
                 drop_off_colour_index = colour_check()
                 print('drop off color position: ', colour_name[drop_off_colour_index])
