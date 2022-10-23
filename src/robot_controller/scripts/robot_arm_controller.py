@@ -52,7 +52,7 @@ class Cube:
         self.history.append([x, y, z])
         self.z_his.append(z_rot)
         self.time_his.append(time.time())
-        # print(f"Cube ID: {self.id}, Time: {time.time()}, New Pos: {x}, {y}, {z}")
+        #print(f"Cube ID: {self.id}, Time: {time.time()}, New Pos: {x}, {y}, {z}, Z-rot: {np.rad2deg(z_rot)}")
 
 ######################################
 #         HELPER FUNCTIONS           #
@@ -327,7 +327,7 @@ def init_sub_pub():
     Initlialises all ROS publishers and subscribers used for the project.
     """
     # Initialise node with any node name
-    rospy.init_node('metr4202_w7_prac')
+    rospy.init_node('robot_controller')
     global pub
     global desired_pose_pub
     global gripper_pub
@@ -501,6 +501,9 @@ def pickup_cube(cube: Cube):
     x_cal = np.sign(cube_last_pos[0])*5
     y_cal = np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
     
+    #x_cal = 0
+    #y_cal = 0
+    
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
     msg.position.x = cube_last_pos[0] + x_cal
@@ -636,12 +639,13 @@ def acuro_cb(data: FiducialTransformArray):
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
-            # print(f"Cube corner position: {p}")
+            #print(f"Camera cube corner position: {p}")
             
             # transformation from cam to cube center
             T_cam_cubeCenter = cam_cen_trans(z_rot, p)
+            #print(f"Cam_CubeCenter Transformation: \n{T_cam_cubeCenter}\n")
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
-            #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
+            #print(f"Camera to cubeCenter pos: \n{pos_cam_cubeCenter}\n")
             
             # check if cube in cubelist already
             if tag_id not in cubes.keys():
@@ -653,7 +657,7 @@ def acuro_cb(data: FiducialTransformArray):
             
             T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
             np.set_printoptions(suppress=True)   
-            # print(f"T_s_cube_center: \n{T_s_cube_center}")
+            #print(f"T_s_cube_center: \n{T_s_cube_center}")
             p = T_s_cube_center[0:3, 3]
             # print(f"Cube center position: {p}")
             
@@ -817,7 +821,7 @@ def main():
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-    
+        
     rospy.spin()
 
 
