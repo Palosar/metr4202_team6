@@ -724,6 +724,7 @@ def main():
     colour_check_pos = [-1, -180, 240]
 
     while not rospy.is_shutdown():
+        
         print(f"---------- Current State: {state} {state_names[state]}----------")
         if state == states.get("PREDICTION"):
             # implementation 1:
@@ -816,7 +817,7 @@ def main():
         # You spin me right round baby, right round...
         # Just stops Python from exiting and executes callbacks
         testSpeed.sleep()
-        
+    
     rospy.spin()
 
 
