@@ -419,7 +419,7 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 1 - 15
+    msg.position.x = cube_last_pos[0] * 1 +5
     msg.position.y = cube_last_pos[1] * 1
     msg.position.z = cube_last_pos[2] + 100
 
@@ -428,8 +428,8 @@ def pickup_cube(cube: Cube):
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 1.05 - 15
-    msg.position.y = cube_last_pos[1] * 1.05
+    msg.position.x = cube_last_pos[0] * 0.95 +5
+    msg.position.y = cube_last_pos[1] * 0.95
     msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
@@ -552,10 +552,10 @@ def colour_check_cb(data:ColorRGBA):
     global states
     global state
 
-    if state == states["COLOUR_CHECK"]:
-        current_colour["r"]=data.r
-        current_colour["g"]=data.g
-        current_colour["b"]=data.b
+    
+    current_colour["r"]=data.r
+    current_colour["g"]=data.g
+    current_colour["b"]=data.b
 
 ########
 # MAIN
@@ -580,9 +580,10 @@ def main():
     
     testSpeed = rospy.Rate(10)
     colour_name = ["red", "green", "blue", "yellow"]
+    state_names = ["homestate", "prediction", "pickup", "colour check", "drop off"]
 
     while not rospy.is_shutdown():
-        print(f"---------- Current State: {state} ----------")
+        print(f"---------- Current State: {state}-{state_names[state]}----------")
         if state == states.get("HOMESTATE"):
             move_to_init()
             # open gripper
@@ -658,7 +659,7 @@ def main():
                 state = states["HOMESTATE"]
                 
         elif state == states.get("DROP_OFF"):
-            drop_off_point = drop_off_points[drop_off_colour_index]
+            drop_off_point = drop_off_points[colour_name[drop_off_colour_index]]
             move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
             
             rospy.sleep(1)
@@ -675,6 +676,7 @@ def main():
     rospy.spin()
 
 def colour_check():
+    global current_colour
     # check colour
     red = [255, 0, 0]
     green = [0, 255, 0]
@@ -682,12 +684,12 @@ def colour_check():
     yellow = [255, 255, 0]
     test_colours = [red, green, blue, yellow]
     
-    current_colour = [current_colour["r"], current_colour["g"], current_colour["b"]]
+    current_colour_vals = [current_colour["r"], current_colour["g"], current_colour["b"]]
     colour_index = -1
     # colour diff max
     min_colour_diff = 999
     for i, colour_check in enumerate(test_colours):
-        colour_diff = np.sqrt((colour_check[0]-current_colour[0])**2 + (colour_check[1]-current_colour[1])**2 + (colour_check[2]-current_colour[2])**2)
+        colour_diff = np.sqrt((colour_check[0]-current_colour_vals[0])**2 + (colour_check[1]-current_colour_vals[1])**2 + (colour_check[2]-current_colour_vals[2])**2)
         if colour_diff < min_colour_diff:
             colour_index = i
             min_colour_diff = colour_diff
