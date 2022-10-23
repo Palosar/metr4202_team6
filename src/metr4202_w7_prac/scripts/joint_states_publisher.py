@@ -407,7 +407,7 @@ def pickup_cube(cube: Cube):
     
     # send desired intermediate pose above cube for traj. control
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 1 - 10
+    msg.position.x = cube_last_pos[0] * 1 - 15
     msg.position.y = cube_last_pos[1] * 1
     msg.position.z = cube_last_pos[2] + 100
 
@@ -416,9 +416,9 @@ def pickup_cube(cube: Cube):
 
     # send desired position to desired pose topic
     msg = Pose()
-    msg.position.x = cube_last_pos[0] * 1.05 - 10
+    msg.position.x = cube_last_pos[0] * 1.05 - 15
     msg.position.y = cube_last_pos[1] * 1.05
-    msg.position.z = cube_last_pos[2] + 40
+    msg.position.z = cube_last_pos[2] + 30
 
     desired_pose_pub.publish(msg)
     check_arm_in_place()
