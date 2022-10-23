@@ -287,17 +287,14 @@ def init_global_vars():
     # variables which manage state machine of code
     global states       # dictionary of states
     global state        # current state of arm
-    global initialised  # variable check to see if robot has initialised
 
     states = {
-        "HOMESTATE" : 0,    # for initalising the robot
-        "PREDICTION" : 1,   # for looking for blocks
-        "PICKUP" : 2,       # to move to pickup and grip blocks
-        "COLOUR_CHECK" : 3, # to move to a positoin to read color then read color
-        "DROP_OFF" : 4      # move to position according to color of block and drop
+        "PREDICTION" : 0,   # for looking for blocks
+        "PICKUP" : 1,       # to move to pickup and grip blocks
+        "COLOUR_CHECK" : 2, # to move to a positoin to read color then read color
+        "DROP_OFF" : 3      # move to position according to color of block and drop
     }
     state = states["PREDICTION"]
-    initialised = False
 
     # colour related
     global current_colour           # current colour in colour check state
@@ -711,7 +708,6 @@ def main():
     global cubes                    # dictionary of cubes detected in the system
     global state                    # current state of state machine
     global states                   # ditcionary of states
-    global initialised              # variable check to see if robot has initialised
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points
     global desired_pos              # desried x,y,z position of arm
@@ -721,54 +717,45 @@ def main():
     testSpeed = rospy.Rate(4)
 
     colour_name = ["red", "green", "blue", "yellow"]
-    state_names = ["homestate", "prediction", "pickup", "colour check", "drop off"]
+    state_names = ["prediction", "pickup", "colour check", "drop off"]
 
     reset_pos = [1, -100, 200]
     init_pos = [150, 150, 200]
     colour_check_pos = [-1, -180, 240]
-    initialised = True
 
     while not rospy.is_shutdown():
         print(f"---------- Current State: {state} {state_names[state]}----------")
-        if state == states.get("HOMESTATE"):
-            move_to_pos(init_pos[0], init_pos[1], init_pos[2])
-            # open gripper
-            gripper_pub.publish(Float32(2000))
-            print('out')
-            
-            # clear detected cubes
-            cubes.clear()
-        elif state == states.get("PREDICTION"):
+        if state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
 
             stopped = False
 
-            if initialised:
-                # move to a position to view cubes
-                move_to_pos(reset_pos[0], reset_pos[1], reset_pos[2])
-                gripper_pub.publish(Float32(2000))
+            # move to a position to view cubes
+            move_to_pos(reset_pos[0], reset_pos[1], reset_pos[2])
+            gripper_pub.publish(Float32(2000))
 
-                # check if there has been a cube added to the system
-                if len(cubes) > 0:
-                    id, cube = list(cubes.items())[0]
-                    if len(cube.history) == 5:
-                        current = cube.history[0]
-                        oldest = cube.history[4]
+            # check if there has been a cube added to the system
+            if len(cubes) > 0:
+                id, cube = list(cubes.items())[0]
+                if len(cube.history) == 5:
+                    current = cube.history[0]
+                    oldest = cube.history[4]
 
-                        dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
-                        print(f"distance prediction value: {dist}")
-                        if dist < 5:
-                            stopped = True
+                    dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
+                    print(f"distance prediction value: {dist}")
+                    if dist < 5:
+                        stopped = True
 
 
-                if stopped:
-                    # change to PICKUP state
-                    state = states["PICKUP"]
+            if stopped:
+                # change to PICKUP state
+                state = states["PICKUP"]
             
 
         elif state == states.get("PICKUP"):
-            # CURRENT IMPLEMENTATION: pickup the first box
+            # CURRENT IMPLEMENTATION: 
+            #   pickup closest box to robot arm
             best_distance = 10000
             
             for cube_id, cube in list(cubes.items()):
@@ -816,10 +803,6 @@ def main():
                 
         elif state == states.get("DROP_OFF"):
             drop_off_point = drop_off_points[colour_name[drop_off_colour_index]]
-            #if drop_off_colour_index == 1:
-            #set_joint_angles(2.82, 
-            #print("goes into move to pos green")
-            #else:
             move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
             
             rospy.sleep(1)
