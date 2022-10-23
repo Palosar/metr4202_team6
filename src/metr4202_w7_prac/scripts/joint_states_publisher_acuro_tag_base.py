@@ -225,7 +225,7 @@ def init_global_vars():
         "COLOUR_CHECK" : 3,
         "DROP_OFF" : 4
     }
-    state = states["HOMESTATE"]
+    state = states["PREDICTION"]
     initialised = False
 
     # colour related variables
@@ -244,6 +244,14 @@ def init_global_vars():
         "g": 0,
         "b": 0
     }
+
+    global T_base_cam
+    T_base_cam = np.array([
+                    [1,  0,  0, 0],
+                    [0, -1,  0, -210],
+                    [0,  0, -1, 455],
+                    [0,  0,  0,    1],
+                ])
 
 def init_sub_pub():
     """
@@ -331,8 +339,8 @@ def check_arm_in_place():
         current_time = time.time()
         
         if current_time - initial_time > 3:
-            state = states["HOMESTATE"]
-            print("arm_in_place reset to homestate")
+            state = states["PREDICTION"]
+            print("arm_in_place reset to prediction")
             break
             
         # add delay incase new information needs to be proccessed
@@ -350,34 +358,6 @@ def check_arm_in_place():
             arm_in_place = True
     print("Arm set in place")  
     
-def move_to_home():
-    """
-    Moves to a default position
-    """
-    global desired_pose_pub
-
-    msg = Pose()
-    msg.position.x = 1
-    msg.position.y = -100
-    msg.position.z = 100
-    desired_pose_pub.publish(msg)
-
-    check_arm_in_place()
-    
-def move_to_colour_check():
-    """
-    Moves to a default position for colour checking
-    """
-    global desired_pose_pub
-
-    msg = Pose()
-    msg.position.x = -1
-    msg.position.y = -180
-    msg.position.z = 240
-    desired_pose_pub.publish(msg)
-
-    check_arm_in_place()
-
 def move_to_pos(x, y, z):
     """
     Moves to a position
@@ -391,20 +371,6 @@ def move_to_pos(x, y, z):
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()        
-    
-def move_to_init():
-    """
-    Moves to a default position
-    """
-    global desired_pose_pub
-    
-    msg = Pose()
-    msg.position.x = 150
-    msg.position.y = 150
-    msg.position.z = 200
-    desired_pose_pub.publish(msg)
-
-    check_arm_in_place()
     
 def pickup_cube(cube: Cube):
     """
@@ -469,9 +435,8 @@ def gripper_cb(gripValue: Float32):
 def acuro_cb(data: FiducialTransformArray): 
     global cubes
     global T_base_cam
-    global initialised
-    # NOTE: must add ignorance to arm tag
-    ARM_ID = 19
+    # global initialised
+    # ARM_ID = 19
 
     # if there is a cube detected, transforms array > 0
     if len(data.transforms) > 0:
@@ -486,13 +451,28 @@ def acuro_cb(data: FiducialTransformArray):
             
             # convert pos data to array
             p = np.array([tag_pos.x*1000, tag_pos.y*1000, tag_pos.z*1000])
-            #print(f"this is p: {p}")
+            # print(f"this is p: {p}")
             
             # transformation from cam to cube center
             T_cam_cubeCenter = TransCamCen(z, p)
             pos_cam_cubeCenter = [T_cam_cubeCenter[0][3], T_cam_cubeCenter[1][3], T_cam_cubeCenter[2][3]]
             #print(f"Displacement from cam to centre p{pos_cam_cubeCenter}")
             
+            # check if cube in cubelist already
+            if tag_id not in cubes.keys():
+                newCube = Cube(tag_id)
+                cubes[tag_id] = newCube
+
+            # convert cube position data 
+            #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
+            
+            T_s_cube_center = np.dot(T_base_cam, T_cam_cubeCenter)
+            p = T_s_cube_center[0:3, 3]
+            
+            # update cube position relative to arm base
+            cubes.get(tag_id).update_pos(T_s_cube_center[0][3], T_s_cube_center[1][3], T_s_cube_center[2][3])
+
+            """ #
             if tag_id != ARM_ID and initialised:
                 # check if cube in cubelist already
                 if tag_id not in cubes.keys():
@@ -536,8 +516,8 @@ def acuro_cb(data: FiducialTransformArray):
                 T_base_cam[0,3] = T_base_cam[0,3] + 30
                 T_base_cam[1,3] = T_base_cam[1,3]
                 initialised = True
-            
-        
+                """
+                        
     pass
 
 def joint_state_cb(data:JointState):
@@ -579,13 +559,19 @@ def main():
     rospy.sleep(1)
     
     testSpeed = rospy.Rate(10)
+
     colour_name = ["red", "green", "blue", "yellow"]
     state_names = ["homestate", "prediction", "pickup", "colour check", "drop off"]
+
+    reset_pos = [-1, 100, 100]
+    init_pos = [150, 150, 200]
+    colour_check_pos = [-1, -180, 240]
+    initialised = True
 
     while not rospy.is_shutdown():
         print(f"---------- Current State: {state}-{state_names[state]}----------")
         if state == states.get("HOMESTATE"):
-            move_to_init()
+            move_to_pos(init_pos[0], init_pos[1], init_pos[2])
             # open gripper
             gripper_pub.publish(Float32(2000))
             print('out')
@@ -593,17 +579,18 @@ def main():
             # clear detected cubes
             cubes.clear()
             state = states["PREDICTION"]
-
         elif state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
+
             stopped = False
-            #print(f"initialised: {initialised}") 
+
             if initialised:
-                move_to_home()
+                # move to a position to view cubes
+                move_to_pos(reset_pos[0], reset_pos[1], reset_pos[2])
+                gripper_pub.publish(Float32(2000))
+
                 # check if there has been a cube added to the system
-                #print(f"number of cubes detected: {len(cubes)}")
-                
                 if len(cubes) > 0:
                     id, cube = list(cubes.items())[0]
                     if len(cube.history) == 5:
@@ -629,8 +616,7 @@ def main():
             state = states["COLOUR_CHECK"]
 
         elif state == states.get("COLOUR_CHECK"):
-
-            move_to_colour_check()
+            move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
             rospy.sleep(2)
             block_removed = False
             
@@ -650,13 +636,13 @@ def main():
             
             if block_removed:
                 # move to colour check position
-                move_to_colour_check()
+                move_to_pos(colour_check_pos[0], colour_check_pos[1], colour_check_pos[2])
                 rospy.sleep(2)
                 drop_off_colour_index = colour_check()
                 print('drop off color position: ', colour_name[drop_off_colour_index])
                 state = states["DROP_OFF"]
             else:
-                state = states["HOMESTATE"]
+                state = states["PREDICTION"]
                 
         elif state == states.get("DROP_OFF"):
             drop_off_point = drop_off_points[colour_name[drop_off_colour_index]]
@@ -677,6 +663,10 @@ def main():
 
 def colour_check():
     global current_colour
+<<<<<<< HEAD:src/metr4202_w7_prac/scripts/joint_states_publisher_acuro_tag_base.py
+=======
+
+>>>>>>> 659d1708e8616863a9765a8d7f0a5a2ec26474c7:src/metr4202_w7_prac/scripts/joint_states_publisher.py
     # check colour
     red = [255, 0, 0]
     green = [0, 255, 0]
