@@ -2,5 +2,13 @@
 	<node name="dynamixel_interface_controller_node" pkg="dynamixel_interface" type="dynamixel_interface_controller_node" output="screen">
 		<rosparam command="load" file="$(find dynamixel_interface)/config/controller_config.yaml" />
 	</node>
+	
+	<node pkg="ximea_ros" name="camera_raw_node" type="ximea_demo"/>
+
+    <node pkg="ximea_color" name="colour_detect_node" type="example_camera.py"/>
+    
+    <include file="$(find ximea_ros)/launch/ximea_aruco.launch">
+        <arg name="serial" value="31703851"/>
+    </include>
     <node pkg="robot_controller" name="robot_controller_node" type="robot_arm_controller.py" output="screen"/>
 </launch>

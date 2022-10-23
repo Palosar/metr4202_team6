@@ -264,7 +264,7 @@ def invk(x,y,z):
         # Specify joint names (see `controller_config.yaml` under `dynamixel_interface/config`)
         name=['joint_1', 'joint_2', 'joint_3', 'joint_4'],
         position=[best_solution[0], best_solution[1], best_solution[2], best_solution[3]],
-        velocity=[2, 2, 2, 2],
+        velocity=[2.2, 2.2, 2.2, 2.2],
         #effort=[20, 20, 20, 20]
     )
     
@@ -499,7 +499,7 @@ def pickup_cube(cube: Cube):
     
     # calibration values
     x_cal = np.sign(cube_last_pos[0])*5
-    y_cal = np.sign(cube_last_pos[1])*10 + 10/(cube_last_pos[1]/50)
+    y_cal = np.sign(cube_last_pos[1])*30 + 10/(cube_last_pos[1]/50)
     
     #x_cal = 0
     #y_cal = 0
@@ -727,6 +727,8 @@ def main():
     init_pos = [150, 150, 200]
     colour_check_pos = [-1, -180, 240]
 
+    fun_task = False
+
     while not rospy.is_shutdown():
         
         print(f"---------- Current State: {state} {state_names[state]}----------")
@@ -761,21 +763,29 @@ def main():
         elif state == states.get("PICKUP"):
             # CURRENT IMPLEMENTATION: 
             #   pickup closest box to robot arm
+            #   attempted to consider z-rotation
+            #   obstructed blocks ignored
             best_distance = 10000
+                        
+            # pick up closest cube         
+               
+            best_block = []
             
             for cube_id, cube in list(cubes.items()):
 
                 distance = np.linalg.norm(cube.get_position())
                 cube_rot = abs(np.rad2deg(cube.z_his[-1]))%90
                 arm_rot = abs(np.rad2deg(np.arctan2(desired_pos[0], desired_pos[1])))%90
-                rot_comp = abs(cube_rot - arm_rot)
-                
-                print(f"Cube {cube_id}: distance- {distance} cube_rot- {cube_rot} arm_rot- {arm_rot} rot_comp- {rot_comp}") 
+                rot_comp = abs(cube_rot - arm_rot)   
+                   
+                # print(f"Cube {cube_id}: distance- {distance} cube_rot- {cube_rot} arm_rot- {arm_rot} rot_comp- {rot_comp}") 
                 if distance < best_distance:
                     closest_cube = cube
                     best_distance = distance
+            
 
             pickup_cube(closest_cube)            
+            
             
             # move arm holding block out of the way
             move_to_pos(100,1,200)
