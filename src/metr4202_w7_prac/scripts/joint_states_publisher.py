@@ -54,7 +54,6 @@ def zRotMatrix(theta):
 def RpToTrans(R, p):
     return np.r_[np.c_[R, p], [[0, 0, 0, 1]]]
 
-
 def TransCamCen(z_rot, p):
     I = np.eye(3)
 
@@ -75,8 +74,6 @@ def TransCamCen(z_rot, p):
 
 # transformation from s frame to centre of cube
 def TransSCen(Tcam_cen,Ts_cam):
-
-
     Ts_cen = np.dot(Ts_cam, Tcam_cen)
     return Ts_cen
 
@@ -101,7 +98,6 @@ def euler_from_quaternion(x, y, z, w):
         yaw_z = math.atan2(t3, t4)
      
         return roll_x, pitch_y, yaw_z # in radians
-
 
 def invk2(x,y,z):
     """
@@ -213,11 +209,15 @@ def init_global_vars():
     rpi = pigpio.pi()
     rpi.set_mode(18, pigpio.OUTPUT)
 
-    global cubes        # dictionary of cubes detected in the system
+    # dictionary of cubes detected in the system
+    global cubes        
     cubes = {}
 
+    # variables which manage state machine of code
     global states       # dictionary of states
     global state        # current state of arm
+    global initialised  # variable check to see if robot has initialised
+
     states = {
         "HOMESTATE" : 0,
         "PREDICTION" : 1,
@@ -225,9 +225,25 @@ def init_global_vars():
         "COLOUR_CHECK" : 3,
         "DROP_OFF" : 4
     }
-
-    # begin project in homestate
     state = states["HOMESTATE"]
+    initialised = False
+
+    # colour related variables
+    global current_colour           # current colour in colour check state
+    global drop_off_points          # dictionary of drop off points    
+    
+    drop_off_points = {
+        "red"     : [150, 40, 150],    
+        "green"   : [50, 200, 150],   
+        "blue"    : [-50, 200, 100],    
+        "yellow"  : [-150, 40, 150],
+    }
+        
+    current_colour = {
+        "r": 0,
+        "g": 0,
+        "b": 0
+    }
 
 def init_sub_pub():
     """
@@ -299,7 +315,6 @@ def init_sub_pub():
         colour_check_cb
     )
 
-
 def check_arm_in_place():
     """
     Checks if the arm has arrived at desired position
@@ -333,8 +348,7 @@ def check_arm_in_place():
         #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
         if diff_j1 < 0.5 and diff_j2 < 0.5 and diff_j3 < 0.5 and diff_j4 < 0.5:
             arm_in_place = True
-    print("Arm set in place")
-        
+    print("Arm set in place")  
     
 def move_to_home():
     """
@@ -349,7 +363,6 @@ def move_to_home():
     desired_pose_pub.publish(msg)
 
     check_arm_in_place()
-    
     
 def move_to_colour_check():
     """
@@ -377,8 +390,7 @@ def move_to_pos(x, y, z):
     msg.position.z = z
     desired_pose_pub.publish(msg)
 
-    check_arm_in_place()
-        
+    check_arm_in_place()        
     
 def move_to_init():
     """
@@ -452,7 +464,7 @@ def gripper_cb(gripValue: Float32):
         print(f"Gripper value ({gripValue.data}) is invalid. Limits are 1000-2000.")
     else:
         rpi.set_servo_pulsewidth(18,gripValue.data) 
-        print(f"Gripper state value changed to: + {gripValue.data}")
+        # print(f"Gripper state value changed to: + {gripValue.data}")
 
 def acuro_cb(data: FiducialTransformArray): 
     global cubes
@@ -486,9 +498,6 @@ def acuro_cb(data: FiducialTransformArray):
                 if tag_id not in cubes.keys():
                     newCube = Cube(tag_id)
                     cubes[tag_id] = newCube
-
-
-
 
                 # convert cube position data 
                 #T_s_cube_center = np.dot(T_base_cam, np.array([pos_cam_cubeCenter[0], pos_cam_cubeCenter[1], pos_cam_cubeCenter[2]+5, 1]))
@@ -539,11 +548,14 @@ def joint_state_cb(data:JointState):
         current_joint_angles.reverse()
 
 def colour_check_cb(data:ColorRGBA):
-    global colour
-    colour["r"]=data.r
-    colour["g"]=data.g
-    colour["b"]=data.b
+    global current_colour
+    global states
+    global state
 
+    if state == states["COLOUR_CHECK"]:
+        current_colour["r"]=data.r
+        current_colour["g"]=data.g
+        current_colour["b"]=data.b
 
 ########
 # MAIN
@@ -553,42 +565,35 @@ def main():
     init_sub_pub()
     init_global_vars()
 
-    # global variables
+    # global variables used in main
     global current_joint_angles     # array of current angles in radians
     global desired_joint_angles     # array of desired angles in radians
     global cubes                    # dictionary of cubes detected in the system
-    global state
-    global states
-    global initialised
-    global colour
-    global drop_off_colour
-    global drop_off_points
+    global state                    # current state of state machine
+    global states                   # ditcionary of states
+    global initialised              # variable check to see if robot has initialised
+    global current_colour           # current colour in colour check state
+    global drop_off_points          # dictionary of drop off points
     
-    
-    drop_off_points = {
-        0 : [150, 40, 150],    # red
-        1 : [50, 200, 150],    # green
-        2 : [-50, 200, 100],    # blue
-        3 : [-150, 40, 150],    # yellow
-    }
-        
-    colour = {
-        "r": 0,
-        "g": 0,
-        "b": 0
-    }
-
-    initialised = False
-    
-    # add initial delay so dynamixel can load
+    # add initial delay so everything can load
     rospy.sleep(1)
     
-    
     testSpeed = rospy.Rate(10)
+    colour_name = ["red", "green", "blue", "yellow"]
 
     while not rospy.is_shutdown():
-        print(f"State: {state}")
-        if state == states.get("PREDICTION"):
+        print(f"---------- Current State: {state} ----------")
+        if state == states.get("HOMESTATE"):
+            move_to_init()
+            # open gripper
+            gripper_pub.publish(Float32(2000))
+            print('out')
+            
+            # clear detected cubes
+            cubes.clear()
+            state = states["PREDICTION"]
+
+        elif state == states.get("PREDICTION"):
             # implementation 1:
             # detect when cubes have stopped and detect from there
             stopped = False
@@ -603,6 +608,7 @@ def main():
                     if len(cube.history) == 5:
                         current = cube.history[0]
                         oldest = cube.history[4]
+
                         #print(f"current: {current}, oldest: {oldest}")
                         dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
                     
@@ -614,25 +620,7 @@ def main():
                     # change to PICKUP state
                     state = states["PICKUP"]
 
-        elif state == states.get("HOMESTATE"):
-            # TODO:
-            #   - 
-            move_to_init()
-            # open gripper
-            gripper_pub.publish(Float32(2000))
-            print('out')
-            
-            # clear detected cubes
-            cubes.clear()
-            state = states["PREDICTION"]
-
         elif state == states.get("PICKUP"):
-            # TODO:
-            #   - check which block to pickup
-            #   - pickup block
-            #   - move out of the way
-            #   - move
-
             # CURRENT IMPLEMENTATION: pickup the first box
             id, cube = list(cubes.items())[0]
             pickup_cube(cube)
@@ -640,15 +628,11 @@ def main():
             state = states["COLOUR_CHECK"]
 
         elif state == states.get("COLOUR_CHECK"):
-            # TODO:
-            #   - check if the block has been picked up
-            #   - check the colour of block
-            #   - drop block for designated colour
-            #   - remove from dictionary of blocks
 
-            move_to_colour_check() # gotta change to colour check pos
+            move_to_colour_check()
             rospy.sleep(2)
             block_removed = False
+            
             # check if cube still on the board
             remove_id = []
             for cube_id in cubes.keys():
@@ -658,7 +642,8 @@ def main():
                 if time_diff > 3:
                      remove_id.append(cube_id)
                      block_removed = True
-            
+
+            # remove cube that is no longer on the board
             for cube_id in remove_id:
                 cubes.pop(cube_id)
             
@@ -666,16 +651,14 @@ def main():
                 # move to colour check position
                 move_to_colour_check()
                 rospy.sleep(2)
-                drop_off_colour = colour_check()
-                print('color: ', drop_off_colour)
+                drop_off_colour_index = colour_check()
+                print('drop off color position: ', colour_name[drop_off_colour_index])
                 state = states["DROP_OFF"]
             else:
                 state = states["HOMESTATE"]
                 
         elif state == states.get("DROP_OFF"):
-            # TODO: drop at detected colour
-            # move to a drop off point
-            drop_off_point = drop_off_points[drop_off_colour]
+            drop_off_point = drop_off_points[drop_off_colour_index]
             move_to_pos(drop_off_point[0], drop_off_point[1], drop_off_point[2])
             
             rospy.sleep(1)
@@ -699,7 +682,7 @@ def colour_check():
     yellow = [255, 255, 0]
     test_colours = [red, green, blue, yellow]
     
-    current_colour = [colour["r"], colour["g"], colour["b"]]
+    current_colour = [current_colour["r"], current_colour["g"], current_colour["b"]]
     colour_index = -1
     # colour diff max
     min_colour_diff = 999
