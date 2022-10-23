@@ -21,22 +21,11 @@ In order to run the code the following has to be launched in 5 different termina
 #Terminal 2: (main camera, need to be in catkin_ws folder)
 	source devel/setup.bash
 	echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb
-	rosrun ximea_ros ximea_demo
-	
-#Terminal 3: (aruco tag detection). Use the serial number of the camera.
-	source devel/setup.bash
-	roslaunch ximea_ros ximea_aruco.launch serial:=31703851 
-	
-#Terminal 4: (main project)
-	source devel/setup.bash
 	sudo pigpiod
 	roslaunch robot_controller robot_arm.launch
-	
-Terminal 5: (colour)
-	source devel/setup.bash
-	rosrun ximea_color example_camera.py
-
 ```
+Ensure that terminal with the camera id (eg. 317803851) is adjusted to exposure and changed to colour.
+
 ## Acknowledgements
 We would like to acknowledge the METR4202 tutoring team for supplying the skeleton code for our project. Additionally, they provided code for colour detection. (anything more?)
 ## Sources
