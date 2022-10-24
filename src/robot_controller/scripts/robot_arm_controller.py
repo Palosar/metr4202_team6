@@ -747,7 +747,7 @@ def main():
     colour_check_pos = [-1, -180, 240]
     fun_task_start_angles = [1.39, 1.2, 0, 0]
     fun_task_final_angles = [1.39, -0.8, 0, 0]
-    fun_task = True
+    fun_task = False
     release = False
 
     while not rospy.is_shutdown():
