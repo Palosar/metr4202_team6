@@ -402,6 +402,10 @@ def check_arm_in_place():
     global state
     global states
     global cubes
+    
+    # fun task vars
+    global release
+    global gripper_pub
 
     initial_time = time.time()
     arm_in_place = False
@@ -427,6 +431,12 @@ def check_arm_in_place():
         diff_j3 = np.abs(desired_joint_angles[2] - current_joint_angles[2])
         diff_j4 = np.abs(desired_joint_angles[3] - current_joint_angles[3])
         
+        if release:
+            if (diff_j1 < 3*err_threshold and diff_j2 < 3*err_threshold and 
+                    diff_j3 < 3*err_threshold and diff_j4 < 3*err_threshold):
+                rpi.set_servo_pulsewidth(18,2000)
+                print("GOT TO FUN TASK RELEASEEEE")
+                release = False
         
         #print("Arm not in place")
         #print(f"Angle Differences: \n j1:{diff_j1} j2:{diff_j2} j3:{diff_j3} j4:{diff_j4}")
@@ -587,11 +597,17 @@ def invk_cb(pose: Pose):
     global state
     global states
     global cubes
+    global fun_task
+    
     
     try:
         desired_jstate = invk(pose.position.x, pose.position.y, pose.position.z)
         desired_pos = [pose.position.x, pose.position.y, pose.position.z]
         desired_joint_angles = desired_jstate.position
+        
+        if fun_task:
+            desired_jstate.velocity = [2.3, 2.3, 2.3, 2.3]
+            
         pub.publish(desired_jstate)
     except:
         state = states["PREDICTION"]
@@ -715,6 +731,8 @@ def main():
     global current_colour           # current colour in colour check state
     global drop_off_points          # dictionary of drop off points
     global desired_pos              # desried x,y,z position of arm
+    global fun_task                 # enable to throw cube away    
+    global release                  # enables early release
     # add initial delay so everything can load
     rospy.sleep(2)
     
@@ -726,8 +744,10 @@ def main():
     reset_pos = [1, -100, 200]
     init_pos = [150, 150, 200]
     colour_check_pos = [-1, -180, 240]
-
+    fun_task_start_angles = [1.39, 1.2, 0, 0]
+    fun_task_final_angles = [1.39, -0.8, 0, 0]
     fun_task = False
+    release = False
 
     while not rospy.is_shutdown():
         
@@ -774,8 +794,6 @@ def main():
             #   attempted to consider z-rotation
             #   obstructed blocks ignored
             best_distance = 10000
-                        
-            # pick up closest cube         
                
             cube_dists = []
             valid_cube_ids = []
@@ -788,7 +806,7 @@ def main():
                 
                 cube_valid = True
                 
-                # check cube not obstructed
+                # find cubes that are obstructed
                 for cube2_id, cube2 in list(cubes.items()):
                     if cube_id == cube2_id:
                         continue
@@ -796,9 +814,11 @@ def main():
                         print(f"Cube {cube_id} is too close to Cube {cube2_id}")
                         cube_valid = False
                         break
-                                     
+                                    
                 if cube_valid:
                     valid_cube_ids.append(cube_id)   
+                
+                
                 cube_rot = abs(np.rad2deg(cube.z_his[-1]))%90
                 arm_rot = abs(np.rad2deg(np.arctan2(desired_pos[0], desired_pos[1])))%90
                 rot_comp = abs(cube_rot - arm_rot)   
@@ -830,29 +850,40 @@ def main():
                 state = states["PREDICTION"]
                 
         elif state == states.get("COLOUR_CHECK"):
-            block_removed = False
-            
-            # check if cube still on the board
-            for cube_id in cubes.keys():
-                current_time = time.time()
-                time_diff = current_time - cubes[cube_id].time_his[0]
-                print(f"time last detected {cube_id}: {time_diff}") 
-                if time_diff > 3:
-                     block_removed = True
-                     break
-            
-            if block_removed:
-                # move to colour check position
-                move_to_colour_check_pos()
-                # update values for 2 seconds
-                rospy.sleep(2)
-                
-                drop_off_colour_index = colour_check()
-                print('drop off color position: ', colour_name[drop_off_colour_index])
-                state = states["DROP_OFF"]
-            else:
+            if fun_task:
+                set_joint_angles(fun_task_start_angles[0], fun_task_start_angles[1], 
+                        fun_task_start_angles[2], fun_task_start_angles[3])
+                rospy.sleep(0.5)
+                release = True
+                set_joint_angles(fun_task_final_angles[0], fun_task_final_angles[1],
+                        fun_task_final_angles[2], fun_task_final_angles[3])
                 cubes.clear()
                 state = states["PREDICTION"]
+                
+            else:
+                block_removed = False
+                
+                # check if cube still on the board
+                for cube_id in cubes.keys():
+                    current_time = time.time()
+                    time_diff = current_time - cubes[cube_id].time_his[0]
+                    print(f"time last detected {cube_id}: {time_diff}") 
+                    if time_diff > 3:
+                         block_removed = True
+                         break
+                
+                if block_removed:
+                    # move to colour check position
+                    move_to_colour_check_pos()
+                    # update values for 2 seconds
+                    rospy.sleep(2)
+                    
+                    drop_off_colour_index = colour_check()
+                    print('drop off color position: ', colour_name[drop_off_colour_index])
+                    state = states["DROP_OFF"]
+                else:
+                    cubes.clear()
+                    state = states["PREDICTION"]
                 
         elif state == states.get("DROP_OFF"):
             drop_off_point = drop_off_points[colour_name[drop_off_colour_index]]
