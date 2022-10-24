@@ -406,6 +406,7 @@ def check_arm_in_place():
     # fun task vars
     global release
     global gripper_pub
+    global rpi
 
     initial_time = time.time()
     arm_in_place = False
@@ -432,8 +433,8 @@ def check_arm_in_place():
         diff_j4 = np.abs(desired_joint_angles[3] - current_joint_angles[3])
         
         if release:
-            if (diff_j1 < 3*err_threshold and diff_j2 < 3*err_threshold and 
-                    diff_j3 < 3*err_threshold and diff_j4 < 3*err_threshold):
+            if (diff_j1 < 4*err_threshold and diff_j2 < 4*err_threshold and 
+                    diff_j3 < 4*err_threshold and diff_j4 < 4*err_threshold):
                 rpi.set_servo_pulsewidth(18,2000)
                 print("GOT TO FUN TASK RELEASEEEE")
                 release = False
@@ -746,7 +747,7 @@ def main():
     colour_check_pos = [-1, -180, 240]
     fun_task_start_angles = [1.39, 1.2, 0, 0]
     fun_task_final_angles = [1.39, -0.8, 0, 0]
-    fun_task = False
+    fun_task = True
     release = False
 
     while not rospy.is_shutdown():
