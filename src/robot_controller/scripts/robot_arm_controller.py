@@ -41,7 +41,7 @@ class Cube:
         self.last_detected_seq = -1
 
     def get_position(self):
-        return(self.history[0])
+        return(self.history[-1])
 
     def update_pos(self, x, y, z, z_rot):
         if len(self.history) == 5:
@@ -745,9 +745,17 @@ def main():
             # check if there has been a cube added to the system
             if len(cubes) > 0:
                 id, cube = list(cubes.items())[0]
-                if len(cube.history) == 5:
+                history_valid = True
+                
+                # check all cubes have enough 
+                for cube_id, cube in list(cubes.items()):
+                    if len(cube.history) < 5:
+                        history_valid = False
+                        break
+                
+                if history_valid:
                     current = cube.history[0]
-                    oldest = cube.history[4]
+                    oldest = cube.history[-1]
 
                     dist = np.sqrt((current[0]-oldest[0])**2 + (current[1]-oldest[1])**2 + (current[2]-oldest[2])**2)
                     print(f"distance prediction value: {dist}")
@@ -769,28 +777,58 @@ def main():
                         
             # pick up closest cube         
                
-            best_block = []
+            cube_dists = []
+            valid_cube_ids = []
             
             for cube_id, cube in list(cubes.items()):
 
+                # save cube distances
                 distance = np.linalg.norm(cube.get_position())
+                cube_dists.append((cube_id, distance))
+                
+                cube_valid = True
+                
+                # check cube not obstructed
+                for cube2_id, cube2 in list(cubes.items()):
+                    if cube_id == cube2_id:
+                        continue
+                    if (np.linalg.norm(np.array(cube.get_position()) - np.array(cube2.get_position())) < 50):
+                        print(f"Cube {cube_id} is too close to Cube {cube2_id}")
+                        cube_valid = False
+                        break
+                                     
+                if cube_valid:
+                    valid_cube_ids.append(cube_id)   
                 cube_rot = abs(np.rad2deg(cube.z_his[-1]))%90
                 arm_rot = abs(np.rad2deg(np.arctan2(desired_pos[0], desired_pos[1])))%90
                 rot_comp = abs(cube_rot - arm_rot)   
                    
-                # print(f"Cube {cube_id}: distance- {distance} cube_rot- {cube_rot} arm_rot- {arm_rot} rot_comp- {rot_comp}") 
-                if distance < best_distance:
-                    closest_cube = cube
-                    best_distance = distance
+            # sort cube distances by largest value
+            sorted(cube_dists, key=lambda x:x[1])
+            cube_dists.reverse() # sort by least value
             
-
-            pickup_cube(closest_cube)            
+            print(cube_dists)
+            print(valid_cube_ids)
+            closest_cube_id, distance = cube_dists[0]
             
+            valid_cube = False
             
-            # move arm holding block out of the way
-            move_to_pos(100,1,200)
-            rospy.sleep(2)
-            state = states["COLOUR_CHECK"]
+            # check if the cubes are valid
+            for cube_id, distance in cube_dists:
+                if cube_id in valid_cube_ids:
+                    pickup_cube(cubes[closest_cube_id])    
+                    valid_cube = True        
+                    # move arm holding block out of the way
+                    move_to_pos(100,1,200)
+                    rospy.sleep(2)
+                    state = states["COLOUR_CHECK"]
+                    break
+                
+            if not valid_cube:
+                print("got to invalid cubes")
+                cubes.clear()
+                state = states["PREDICTION"]
+                
         elif state == states.get("COLOUR_CHECK"):
             block_removed = False
             
